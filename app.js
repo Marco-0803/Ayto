@@ -503,7 +503,7 @@ window.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", renderTimeline);
   });
 });
-// === 🧮 AYTO Solver mit stylischer Matrix ===
+// === 🧮 AYTO Solver mit stylischer Matrix + Autoanzeige + Export ===
 window.addEventListener("DOMContentLoaded", () => {
   const solveBtn = document.getElementById("solveBtn");
   const summaryBox = document.getElementById("summary");
@@ -536,7 +536,7 @@ window.addEventListener("DOMContentLoaded", () => {
     logsBox.innerHTML += `<div>${A.length}×${B.length} Teilnehmer</div>`;
     logsBox.innerHTML += `<div>${perfectMatches.length} Perfect Matches, ${noMatches.size} No Matches, ${nights.length} Nights</div>`;
 
-    // --- Permutationsgenerator ---
+    // Permutation
     function* permute(arr) {
       if (arr.length <= 1) yield arr;
       else for (let i = 0; i < arr.length; i++) {
@@ -545,7 +545,7 @@ window.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // --- Check: erfüllt eine Kombination alle Bedingungen? ---
+    // Prüfen
     function isValid(assign) {
       for (const nm of noMatches)
         if (assign.some(p => `${p.A}-${p.B}` === nm)) return false;
@@ -558,7 +558,7 @@ window.addEventListener("DOMContentLoaded", () => {
       return true;
     }
 
-    // --- Alle Kombinationen prüfen ---
+    // Alle Kombinationen prüfen
     const valid = [];
     let tested = 0;
     for (const perm of permute(B)) {
@@ -575,12 +575,12 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // --- Wahrscheinlichkeiten zählen ---
+    // Häufigkeiten zählen
     const counts = {};
     A.forEach(a => B.forEach(b => counts[`${a}-${b}`] = 0));
     valid.forEach(v => v.forEach(p => counts[`${p.A}-${p.B}`]++));
 
-    // --- Stylische Matrix ---
+    // === Matrix erzeugen ===
     let table = `
     <style>
       .ayto-table-container{overflow-x:auto;margin-top:10px;border-radius:10px;box-shadow:0 0 12px rgba(0,0,0,.3);}
@@ -607,8 +607,28 @@ window.addEventListener("DOMContentLoaded", () => {
     });
     table += "</table></div>";
 
+    // Matrix wirklich einsetzen:
     matrixBox.innerHTML = table;
-    summaryBox.innerHTML = `<h3>Ergebnis</h3><div>Gültige Kombinationen: ${valid.length}</div><div>Geprüft: ${tested}</div>`;
+
+    // Ergebnis anzeigen
+    summaryBox.innerHTML = `<h3>Ergebnis</h3><div>${A.length}×${B.length} Teilnehmer</div>
+    <div>${valid.length} gültige Kombination(en) aus ${tested} geprüft</div>`;
+
+    // Button hinzufügen (falls html2canvas geladen)
+    if (typeof html2canvas !== "undefined") {
+      const btn = document.createElement("button");
+      btn.textContent = "Matrix speichern (PNG)";
+      btn.className = "primary";
+      btn.style.marginTop = "12px";
+      btn.onclick = async () => {
+        const canvas = await html2canvas(matrixBox, { backgroundColor: "#191b2d", scale: 2 });
+        const link = document.createElement("a");
+        link.download = "AYTO-Matrix.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+      };
+      summaryBox.insertAdjacentElement("afterend", btn);
+    }
   }
 
   solveBtn.addEventListener("click", berechne);
