@@ -1,6 +1,4 @@
-
-
-// Bottom nav + overlay logic
+/* === 🌐 Bottom Navigation + Overlay Logic === */
 (function(){
   const nav = document.getElementById('nav');
   const pages = document.querySelectorAll('.page');
@@ -16,93 +14,27 @@
   }
 })();
 
-function showOverlay(){ const ov=document.getElementById('overlay'); if(ov){ ov.classList.add('show'); } }
-function hideOverlay(){ const ov=document.getElementById('overlay'); if(ov){ ov.classList.remove('show'); } }
-
-window.addEventListener('DOMContentLoaded', ()=>{
-  const btn = document.getElementById('solveBtn');
-  if(btn){
-    btn.onclick = ()=>{
-      showOverlay();
-      setTimeout(()=>{ try{ if(typeof solve==='function') solve(); } finally { hideOverlay(); } }, 2000);
-    };
+function showOverlay(){
+  const ov=document.getElementById('overlay');
+  if(ov){
+    ov.classList.add('show');
+    const bar = ov.querySelector('.progress .bar');
+    if(bar) bar.style.width = "0%";
   }
-});
+}
+function hideOverlay(){
+  const ov=document.getElementById('overlay');
+  if(ov) ov.classList.remove('show');
+}
 
-// === Teilnehmer-Verwaltung mit localStorage ===
+/* === 👥 Teilnehmer-Verwaltung === */
 window.addEventListener("DOMContentLoaded", () => {
   const listA = document.getElementById("listA");
   const listB = document.getElementById("listB");
   const addA = document.getElementById("addA");
   const addB = document.getElementById("addB");
+  const prefill = document.getElementById("prefill");
   const warn = document.getElementById("warnBalance");
-    // --- Staffel 2025 vorbelegen ---
-  const prefillBtn = document.getElementById("prefill");
-  if (prefillBtn) {
-    prefillBtn.addEventListener("click", () => {
-      if (!confirm("Aktuelle Teilnehmer löschen und Staffel 2025 laden?")) return;
-
-      const A = [
-        "Calvin.O",
-        "Calvin.S",
-        "Jonny",
-        "Kevin",
-        "Leandro",
-        "Lennert",
-        "Nico",
-        "Oliver",
-        "Rob",
-        "Sidar",
-        "Xander"
-      ];
-
-      const B = [
-        "Antonia",
-        "Ariel",
-        "Beverly",
-        "Elly",
-        "Hati",
-        "Henna",
-        "Joanna",
-        "Nelly",
-        "Sandra",
-        "Viki"
-      ];
-
-      localStorage.setItem("aytoTeilnehmer", JSON.stringify({ A, B }));
-
-      // Listen visuell aktualisieren
-      listA.innerHTML = "";
-      listB.innerHTML = "";
-      A.forEach(n => {
-        const div = document.createElement("div");
-        div.className = "row";
-        div.innerHTML = `<input type="text" value="${n}" style="flex:1">
-                         <button class="danger small">✖</button>`;
-        div.querySelector("button").addEventListener("click", () => {
-          div.remove();
-          saveData();
-          checkBalance();
-        });
-        listA.appendChild(div);
-      });
-      B.forEach(n => {
-        const div = document.createElement("div");
-        div.className = "row";
-        div.innerHTML = `<input type="text" value="${n}" style="flex:1">
-                         <button class="danger small">✖</button>`;
-        div.querySelector("button").addEventListener("click", () => {
-          div.remove();
-          saveData();
-          checkBalance();
-        });
-        listB.appendChild(div);
-      });
-
-      saveData();
-      checkBalance();
-    });
-  }
   if(!listA || !listB || !addA || !addB) return;
 
   const STORAGE_KEY = "aytoTeilnehmer";
@@ -112,19 +44,20 @@ window.addEventListener("DOMContentLoaded", () => {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return { A: [], B: [] };
       const parsed = JSON.parse(raw);
-      return { A: Array.isArray(parsed.A) ? parsed.A : [], B: Array.isArray(parsed.B) ? parsed.B : [] };
+      return { A: Array.isArray(parsed.A)?parsed.A:[], B: Array.isArray(parsed.B)?parsed.B:[] };
     } catch (e) {
-      console.warn("Konnte localStorage nicht lesen:", e);
+      console.warn("localStorage Fehler:", e);
       return { A: [], B: [] };
     }
   }
+
   function saveData() {
-    const A = [...listA.querySelectorAll("input")].map(i => i.value.trim()).filter(Boolean);
-    const B = [...listB.querySelectorAll("input")].map(i => i.value.trim()).filter(Boolean);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ A, B }));
+    const A = [...listA.querySelectorAll("input")].map(i=>i.value.trim()).filter(Boolean);
+    const B = [...listB.querySelectorAll("input")].map(i=>i.value.trim()).filter(Boolean);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({A,B}));
   }
 
-  function createPerson(name, group, save = true) {
+  function createPerson(name, group, save=true) {
     const div = document.createElement("div");
     div.className = "row";
     div.innerHTML = `
@@ -133,690 +66,307 @@ window.addEventListener("DOMContentLoaded", () => {
     `;
     const input = div.querySelector("input");
     input.addEventListener("input", saveData);
-    div.querySelector("button").addEventListener("click", () => {
-      div.remove();
-      saveData();
-      checkBalance();
+    div.querySelector("button").addEventListener("click", ()=>{
+      div.remove(); saveData(); checkBalance();
     });
-    (group === "A" ? listA : listB).appendChild(div);
-    if (save) saveData();
+    (group==="A"?listA:listB).appendChild(div);
+    if(save) saveData();
     checkBalance();
   }
 
-  function loadData() {
+  function loadData(){
     const data = getData();
-    listA.innerHTML = "";
-    listB.innerHTML = "";
-    data.A.forEach(n => createPerson(n, "A", false));
-    data.B.forEach(n => createPerson(n, "B", false));
+    listA.innerHTML = ""; listB.innerHTML = "";
+    data.A.forEach(n=>createPerson(n,"A",false));
+    data.B.forEach(n=>createPerson(n,"B",false));
     checkBalance();
   }
 
-  function checkBalance() {
-    const aCount = listA.children.length;
-    const bCount = listB.children.length;
-    if (Math.abs(aCount - bCount) > 1) {
-      warn.style.display = "block";
-      warn.textContent = `⚠ Ungleichgewicht: ${aCount} A‑Person(en) vs. ${bCount} B‑Person(en).`;
-    } else {
-      warn.style.display = "none";
-    }
+  function checkBalance(){
+    const aCount=listA.children.length, bCount=listB.children.length;
+    if(Math.abs(aCount-bCount)>1){
+      warn.style.display="block";
+      warn.textContent=`⚠ Ungleichgewicht: ${aCount} A-Person(en) vs. ${bCount} B-Person(en).`;
+    } else warn.style.display="none";
   }
 
-  addA.addEventListener("click", () => {
-    createPerson(`A${listA.children.length + 1}`, "A");
-  });
-  addB.addEventListener("click", () => {
-    createPerson(`B${listB.children.length + 1}`, "B");
-  });
+  addA.addEventListener("click",()=>createPerson(`A${listA.children.length+1}`,"A"));
+  addB.addEventListener("click",()=>createPerson(`B${listB.children.length+1}`,"B"));
 
-  // Optional: Reset-Button in "Matchingnight"-Sektion leert auch Teilnehmer
-  const resetBtn = document.getElementById("resetBtn");
-  if (resetBtn) {
-    resetBtn.addEventListener("click", () => {
+  // Staffel 2025 vorbelegen
+  if(prefill){
+    prefill.addEventListener("click", ()=>{
+      const A = ["Calvin.O","Calvin.S","Jonny","Kevin","Leandro","Lennert","Nico","Oliver","Rob","Sidar","Xander"];
+      const B = ["Antonia","Ariel","Beverly","Viki","Elly","Hati","Henna","Joanna","Nelly","Sandra"];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({A,B}));
+      loadData();
+      prefill.textContent = "✅ Staffel 2025 geladen";
+      prefill.disabled = true;
+    });
+  }
+
+  const resetBtn=document.getElementById("resetBtn");
+  if(resetBtn){
+    resetBtn.addEventListener("click",()=>{
       localStorage.removeItem(STORAGE_KEY);
-      listA.innerHTML = "";
-      listB.innerHTML = "";
+      listA.innerHTML=""; listB.innerHTML="";
       checkBalance();
     });
   }
 
-  // Start mit geladenen Daten
   loadData();
 });
-// === Matchbox-Logik mit dynamischer Teilnehmer-Verknüpfung ===
-window.addEventListener("DOMContentLoaded", () => {
-  const tbA = document.getElementById("tbA");
-  const tbB = document.getElementById("tbB");
-  const tbType = document.getElementById("tbType");
-  const tbAdd = document.getElementById("addTB");
-  const tbList = document.getElementById("tbList");
 
-  if (!tbA || !tbB || !tbType || !tbAdd || !tbList) return;
+/* === 💞 Matchbox === */
+window.addEventListener("DOMContentLoaded",()=>{
+  const tbA=document.getElementById("tbA"),
+        tbB=document.getElementById("tbB"),
+        tbType=document.getElementById("tbType"),
+        tbAdd=document.getElementById("addTB"),
+        tbList=document.getElementById("tbList");
+  if(!tbA||!tbB||!tbType||!tbAdd||!tbList) return;
 
-  const STORAGE_KEY_TEILNEHMER = "aytoTeilnehmer";
-  const STORAGE_KEY_MATCHES = "aytoMatchbox";
+  const KEY_T="aytoTeilnehmer", KEY_M="aytoMatchbox";
+  const getTeilnehmer=()=>JSON.parse(localStorage.getItem(KEY_T)||'{"A":[],"B":[]}');
+  const loadM=()=>JSON.parse(localStorage.getItem(KEY_M)||"[]");
+  const saveM=a=>localStorage.setItem(KEY_M,JSON.stringify(a));
 
-  // -------- Teilnehmer abrufen --------
-  function getTeilnehmer() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY_TEILNEHMER);
-      if (!raw) return { A: [], B: [] };
-      const parsed = JSON.parse(raw);
-      return {
-        A: Array.isArray(parsed.A) ? parsed.A : [],
-        B: Array.isArray(parsed.B) ? parsed.B : []
+  function refresh(){
+    const {A,B}=getTeilnehmer();
+    tbA.innerHTML='<option value="">— A auswählen —</option>';
+    tbB.innerHTML='<option value="">— B auswählen —</option>';
+    A.forEach(n=>tbA.innerHTML+=`<option>${n}</option>`);
+    B.forEach(n=>tbB.innerHTML+=`<option>${n}</option>`);
+  }
+
+  function render(){
+    const arr=loadM(); tbList.innerHTML="";
+    if(!arr.length){tbList.innerHTML="<div class='small muted'>Noch keine Einträge</div>"; return;}
+    arr.forEach((m,i)=>{
+      const tagClass=m.type==="PM"?"tag good":m.type==="NM"?"tag bad":"tag neutral";
+      const tagText=m.type==="PM"?"Perfect Match":m.type==="NM"?"No Match":"Sold";
+      const div=document.createElement("div");
+      div.className="row";
+      div.innerHTML=`<div style="flex:1">${m.A} × ${m.B} <span class="${tagClass}">${tagText}</span></div>
+      <button class="danger small">✖</button>`;
+      div.querySelector("button").onclick=()=>{
+        const a=loadM(); a.splice(i,1); saveM(a); render();
       };
-    } catch (e) {
-      console.warn("Fehler beim Lesen der Teilnehmer:", e);
-      return { A: [], B: [] };
-    }
-  }
-
-  // -------- Dropdowns neu befüllen --------
-  function refreshDropdowns() {
-    const { A, B } = getTeilnehmer();
-
-    tbA.innerHTML = '<option value="">— A auswählen —</option>';
-    A.forEach(name => {
-      const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name;
-      tbA.appendChild(opt);
-    });
-
-    tbB.innerHTML = '<option value="">— B auswählen —</option>';
-    B.forEach(name => {
-      const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name;
-      tbB.appendChild(opt);
-    });
-  }
-
-  // -------- Matchbox-Einträge laden/speichern --------
-  function loadMatches() {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY_MATCHES)) || [];
-    } catch {
-      return [];
-    }
-  }
-
-  function saveMatches(arr) {
-    localStorage.setItem(STORAGE_KEY_MATCHES, JSON.stringify(arr));
-  }
-
-  function renderMatches() {
-    const matches = loadMatches();
-    tbList.innerHTML = "";
-    if (matches.length === 0) {
-      tbList.innerHTML = "<div class='small muted'>Noch keine Einträge</div>";
-      return;
-    }
-    matches.forEach((m, i) => {
-      const div = document.createElement("div");
-      div.className = "row";
-      const tagClass =
-        m.type === "PM" ? "tag good" :
-        m.type === "NM" ? "tag bad" :
-        "tag neutral";
-      const tagText =
-        m.type === "PM" ? "Perfect Match" :
-        m.type === "NM" ? "No Match" :
-        "Sold";
-      div.innerHTML = `
-        <div style="flex:1">${m.A} × ${m.B} <span class="${tagClass}">${tagText}</span></div>
-        <button class="danger small">✖</button>
-      `;
-      div.querySelector("button").addEventListener("click", () => {
-        const arr = loadMatches();
-        arr.splice(i, 1);
-        saveMatches(arr);
-        renderMatches();
-      });
       tbList.appendChild(div);
     });
   }
 
-  // -------- Eintrag hinzufügen --------
-  tbAdd.addEventListener("click", () => {
-    const a = tbA.value.trim();
-    const b = tbB.value.trim();
-    const type = tbType.value;
-    if (!a || !b) {
-      alert("Bitte A und B auswählen!");
-      return;
-    }
-    const arr = loadMatches();
-    if (arr.some(m => m.A === a && m.B === b)) {
-      alert("Dieses Paar existiert bereits.");
-      return;
-    }
-    arr.push({ A: a, B: b, type });
-    saveMatches(arr);
-    renderMatches();
-  });
+  tbAdd.onclick=()=>{
+    const a=tbA.value.trim(), b=tbB.value.trim(), t=tbType.value;
+    if(!a||!b) return alert("Bitte A und B auswählen!");
+    const arr=loadM();
+    if(arr.some(x=>x.A===a&&x.B===b)) return alert("Dieses Paar existiert bereits!");
+    arr.push({A:a,B:b,type:t}); saveM(arr); render();
+  };
 
-  // -------- Reaktion auf Teilnehmeränderung --------
-  const listA = document.getElementById("listA");
-  const listB = document.getElementById("listB");
-  const observer = new MutationObserver(() => {
-    refreshDropdowns();
-  });
-  if (listA) observer.observe(listA, { childList: true, subtree: true });
-  if (listB) observer.observe(listB, { childList: true, subtree: true });
+  const obsA=new MutationObserver(refresh);
+  const obsB=new MutationObserver(refresh);
+  obsA.observe(document.getElementById("listA"),{childList:true,subtree:true});
+  obsB.observe(document.getElementById("listB"),{childList:true,subtree:true});
 
-  // -------- Startinitialisierung --------
-  refreshDropdowns();
-  renderMatches();
+  refresh(); render();
 });
-// === 🌙 Matching Nights (komplette Paarungen) ===
-window.addEventListener("DOMContentLoaded", () => {
-  const addNightBtn = document.getElementById("addNight");
-  const nightsList = document.getElementById("nights");
-  const STORAGE_KEY_NIGHTS = "aytoMatchingNights";
-  const STORAGE_KEY_TEILNEHMER = "aytoTeilnehmer";
 
-  if (!addNightBtn || !nightsList) return;
+/* === 🌙 Matching Nights === */
+window.addEventListener("DOMContentLoaded",()=>{
+  const addNight=document.getElementById("addNight"),
+        nightsList=document.getElementById("nights");
+  if(!addNight||!nightsList) return;
 
-  // Teilnehmer laden
-  function getTeilnehmer() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY_TEILNEHMER);
-      if (!raw) return { A: [], B: [] };
-      const parsed = JSON.parse(raw);
-      return {
-        A: Array.isArray(parsed.A) ? parsed.A : [],
-        B: Array.isArray(parsed.B) ? parsed.B : []
-      };
-    } catch {
-      return { A: [], B: [] };
-    }
-  }
+  const KEY_N="aytoMatchingNights", KEY_T="aytoTeilnehmer";
+  const getTeilnehmer=()=>JSON.parse(localStorage.getItem(KEY_T)||'{"A":[],"B":[]}');
+  const loadN=()=>JSON.parse(localStorage.getItem(KEY_N)||"[]");
+  const saveN=a=>localStorage.setItem(KEY_N,JSON.stringify(a));
 
-  // Nights laden/speichern
-  function loadNights() {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY_NIGHTS)) || [];
-    } catch {
-      return [];
-    }
-  }
-  function saveNights(arr) {
-    localStorage.setItem(STORAGE_KEY_NIGHTS, JSON.stringify(arr));
-  }
-
-  // Rendering
-  function renderNights() {
-    const nights = loadNights();
-    nightsList.innerHTML = "";
-
-    if (nights.length === 0) {
-      nightsList.innerHTML = "<div class='small muted'>Noch keine Matching Night angelegt</div>";
-      return;
-    }
-
-    nights.forEach((night, i) => {
-      const div = document.createElement("div");
-      div.className = "card stack";
-      div.style.padding = "10px";
-
-      div.innerHTML = `
-        <div class="row" style="justify-content:space-between;align-items:center">
-          <strong>Night ${i + 1}</strong>
-          <button class="danger small">✖</button>
-        </div>
-        <div class="small muted">Lichter: ${night.lights}</div>
-        <table style="width:100%;font-size:13px">
-          ${night.pairs
-            .map(p => `<tr><td>${p.A}</td><td>×</td><td>${p.B}</td></tr>`)
-            .join("")}
-        </table>
-      `;
-
-      div.querySelector("button").addEventListener("click", () => {
-        nights.splice(i, 1);
-        saveNights(nights);
-        renderNights();
-      });
-
+  function render(){
+    const nights=loadN(); nightsList.innerHTML="";
+    if(!nights.length){nightsList.innerHTML="<div class='small muted'>Noch keine Matching Night angelegt</div>"; return;}
+    nights.forEach((n,i)=>{
+      const div=document.createElement("div");
+      div.className="card stack"; div.style.padding="10px";
+      div.innerHTML=`<div class="row" style="justify-content:space-between;align-items:center">
+        <strong>Night ${i+1}</strong><button class="danger small">✖</button></div>
+        <div class="small muted">Lichter: ${n.lights}</div>
+        <table style="width:100%;font-size:13px">${n.pairs.map(p=>`<tr><td>${p.A}</td><td>×</td><td>${p.B||"<i>Keine Partnerin</i>"}</td></tr>`).join("")}</table>`;
+      div.querySelector("button").onclick=()=>{const arr=loadN();arr.splice(i,1);saveN(arr);render();};
       nightsList.appendChild(div);
     });
   }
 
-  // Neue Night hinzufügen
-  addNightBtn.addEventListener("click", () => {
-    const { A, B } = getTeilnehmer();
-    if (A.length === 0 || B.length === 0) {
-      alert("Bitte zuerst Teilnehmer hinzufügen!");
-      return;
-    }
+  addNight.onclick=()=>{
+    const {A,B}=getTeilnehmer();
+    if(!A.length||!B.length) return alert("Bitte zuerst Teilnehmer hinzufügen!");
+    const overlay=document.createElement("div");
+    overlay.style=`
+      position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:9999;`;
+    const box=document.createElement("div");
+    box.className="card stack"; box.style.maxWidth="400px"; box.style.background="#171a2b"; box.style.color="white"; box.style.padding="16px";
+    box.innerHTML="<h3>Neue Matching Night</h3>";
 
-    // --- Erstelle UI für Auswahl ---
-    const overlay = document.createElement("div");
-    overlay.style.position = "fixed";
-    overlay.style.inset = "0";
-    overlay.style.background = "rgba(0,0,0,0.85)";
-    overlay.style.display = "flex";
-    overlay.style.alignItems = "center";
-    overlay.style.justifyContent = "center";
-    overlay.style.zIndex = "10000";
-
-    const box = document.createElement("div");
-    box.className = "card stack";
-    box.style.maxWidth = "400px";
-    box.style.background = "#171a2b";
-    box.style.color = "white";
-    box.style.padding = "16px";
-    box.innerHTML = `<h3>Neue Matching Night</h3>`;
-
-    // Tabelle mit Zuordnungen
-    const table = document.createElement("table");
-    table.style.width = "100%";
-    table.innerHTML = `
-      <tr><th>A-Person</th><th></th><th>B-Person</th></tr>
-    `;
-    A.forEach((a, i) => {
-      const tr = document.createElement("tr");
-      const sel = document.createElement("select");
-      sel.innerHTML =
-        '<option value="">— wählen —</option>' +
-        B.map(b => `<option value="${b}">${b}</option>`).join("");
-      tr.innerHTML = `<td>${a}</td><td>×</td><td></td>`;
-      tr.children[2].appendChild(sel);
+    const table=document.createElement("table"); table.style.width="100%";
+    table.innerHTML="<tr><th>A-Person</th><th></th><th>B-Person</th></tr>";
+    A.forEach(a=>{
+      const tr=document.createElement("tr");
+      const sel=document.createElement("select");
+      sel.innerHTML='<option value="">Keine Partnerin</option>'+B.map(b=>`<option value="${b}">${b}</option>`).join("");
+      tr.innerHTML=`<td>${a}</td><td>×</td><td></td>`; tr.children[2].appendChild(sel);
       table.appendChild(tr);
     });
     box.appendChild(table);
 
-    // Lichter-Auswahl
-    const lightRow = document.createElement("div");
-    lightRow.className = "row";
-    lightRow.style.marginTop = "10px";
-    const lightLabel = document.createElement("label");
-    lightLabel.textContent = "Lichter:";
-    const lightSelect = document.createElement("select");
-    for (let i = 0; i <= Math.min(A.length, B.length); i++) {
-      const opt = document.createElement("option");
-      opt.value = i;
-      opt.textContent = i;
-      lightSelect.appendChild(opt);
+    const lightRow=document.createElement("div");
+    lightRow.className="row"; lightRow.style.marginTop="10px";
+    const lightLabel=document.createElement("label"); lightLabel.textContent="Lichter:";
+    const lightSelect=document.createElement("select");
+    for(let i=0;i<=Math.min(A.length,B.length);i++){
+      const opt=document.createElement("option"); opt.value=i; opt.textContent=i; lightSelect.appendChild(opt);
     }
-    lightRow.appendChild(lightLabel);
-    lightRow.appendChild(lightSelect);
-    box.appendChild(lightRow);
+    lightRow.appendChild(lightLabel); lightRow.appendChild(lightSelect); box.appendChild(lightRow);
 
-    // Buttons
-    const btnRow = document.createElement("div");
-    btnRow.className = "row";
-    btnRow.style.marginTop = "12px";
-    const saveBtn = document.createElement("button");
-    saveBtn.textContent = "Speichern";
-    saveBtn.className = "primary";
-    const cancelBtn = document.createElement("button");
-    cancelBtn.textContent = "Abbrechen";
-    cancelBtn.className = "ghost";
-    btnRow.appendChild(saveBtn);
-    btnRow.appendChild(cancelBtn);
-    box.appendChild(btnRow);
+    const btnRow=document.createElement("div"); btnRow.className="row"; btnRow.style.marginTop="12px";
+    const saveBtn=document.createElement("button"); saveBtn.textContent="Speichern"; saveBtn.className="primary";
+    const cancelBtn=document.createElement("button"); cancelBtn.textContent="Abbrechen"; cancelBtn.className="ghost";
+    btnRow.append(saveBtn,cancelBtn); box.appendChild(btnRow);
+    overlay.appendChild(box); document.body.appendChild(overlay);
+    cancelBtn.onclick=()=>overlay.remove();
 
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
+    saveBtn.onclick=()=>{
+      const selects=box.querySelectorAll("select");
+      const pairs=A.map((a,i)=>({A:a,B:selects[i].value||null}));
+      const lights=parseInt(lightSelect.value,10);
+      const arr=loadN(); arr.push({pairs,lights}); saveN(arr); overlay.remove(); render();
+    };
+  };
 
-    cancelBtn.addEventListener("click", () => overlay.remove());
-
-    saveBtn.addEventListener("click", () => {
-      const pairs = [];
-      const selects = box.querySelectorAll("select");
-      selects.forEach((sel, idx) => {
-        // Die letzten Selects sind für Lichter, daher filtern
-        if (idx < A.length) {
-          const value = sel.value;
-          if (value) pairs.push({ A: A[idx], B: value });
-        }
-      });
-
-      if (pairs.length !== A.length) {
-        alert("Bitte für jede A-Person eine B-Person wählen!");
-        return;
-      }
-
-      const lights = parseInt(lightSelect.value, 10);
-      const nights = loadNights();
-      nights.push({ pairs, lights });
-      saveNights(nights);
-      overlay.remove();
-      renderNights();
-    });
-  });
-
-  // Initial laden
-  renderNights();
+  render();
 });
-// === 🕒 Timeline-Seite ("Nights") ===
-window.addEventListener("DOMContentLoaded", () => {
-  const box = document.getElementById("timelineBox");
-  if (!box) return;
 
-  const KEY_MATCHBOX = "aytoMatchbox";
-  const KEY_NIGHTS = "aytoMatchingNights";
-
-  function getMatchbox() {
-    try { return JSON.parse(localStorage.getItem(KEY_MATCHBOX)) || []; }
-    catch { return []; }
-  }
-  function getNights() {
-    try { return JSON.parse(localStorage.getItem(KEY_NIGHTS)) || []; }
-    catch { return []; }
-  }
-
-  function renderTimeline() {
-    const matchbox = getMatchbox();
-    const nights = getNights();
-    box.innerHTML = "";
-
-    if (matchbox.length === 0 && nights.length === 0) {
-      box.innerHTML = "<div class='small muted'>Noch keine Ereignisse vorhanden</div>";
-      return;
-    }
-
-    // --- Matchbox-Einträge zuerst ---
-    if (matchbox.length > 0) {
-      const mbHeader = document.createElement("h3");
-      mbHeader.textContent = "💞 Matchbox-Entscheidungen";
-      box.appendChild(mbHeader);
-
-      matchbox.forEach((m, i) => {
-        const div = document.createElement("div");
-        div.className = "card stack";
-        const emoji = m.type === "PM" ? "✅" : m.type === "NM" ? "❌" : "🟦";
-        const txt = m.type === "PM" ? "Perfect Match"
-                  : m.type === "NM" ? "No Match" : "Sold";
-        div.innerHTML = `<strong>Matchbox ${i + 1}</strong><div>${emoji} ${m.A} × ${m.B} — ${txt}</div>`;
-        box.appendChild(div);
+/* === 🕒 Timeline === */
+window.addEventListener("DOMContentLoaded",()=>{
+  const box=document.getElementById("timelineBox"); if(!box) return;
+  const get=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d;}catch{return d;}};
+  function render(){
+    const mb=get("aytoMatchbox",[]), nights=get("aytoMatchingNights",[]);
+    box.innerHTML="";
+    if(!mb.length&&!nights.length){box.innerHTML="<div class='small muted'>Noch keine Ereignisse vorhanden</div>";return;}
+    if(mb.length){
+      box.innerHTML+="<h3>💞 Matchbox-Entscheidungen</h3>";
+      mb.forEach((m,i)=>{
+        const emoji=m.type==="PM"?"✅":m.type==="NM"?"❌":"🟦";
+        const txt=m.type==="PM"?"Perfect Match":m.type==="NM"?"No Match":"Sold";
+        box.innerHTML+=`<div class="card stack"><strong>Matchbox ${i+1}</strong><div>${emoji} ${m.A} × ${m.B} — ${txt}</div></div>`;
       });
     }
-
-    // --- Dann Matching Nights ---
-    if (nights.length > 0) {
-      const nightHeader = document.createElement("h3");
-      nightHeader.textContent = "🌙 Matching Nights";
-      box.appendChild(nightHeader);
-
-      nights.forEach((n, i) => {
-        const div = document.createElement("div");
-        div.className = "card stack";
-        div.style.padding = "10px";
-        div.innerHTML = `<strong>Night ${i + 1}</strong> – ${n.lights} Lichter`;
-
-        const table = document.createElement("table");
-        table.style.width = "100%";
-        table.style.fontSize = "13px";
-        table.innerHTML = n.pairs
-          .map(p => `<tr><td>${p.A}</td><td>×</td><td>${p.B}</td></tr>`)
-          .join("");
-        div.appendChild(table);
-
-        box.appendChild(div);
+    if(nights.length){
+      box.innerHTML+="<h3>🌙 Matching Nights</h3>";
+      nights.forEach((n,i)=>{
+        box.innerHTML+=`<div class="card stack"><strong>Night ${i+1}</strong> – ${n.lights} Lichter
+        <table style="width:100%;font-size:13px">${n.pairs.map(p=>`<tr><td>${p.A}</td><td>×</td><td>${p.B||"<i>Keine Partnerin</i>"}</td></tr>`).join("")}</table></div>`;
       });
     }
   }
-
-  // Seite beim Laden aufbauen
-  renderTimeline();
-
-  // Optional: neu rendern, wenn man zur Seite wechselt
-  document.querySelectorAll('nav button[data-target="page-nights"]').forEach(btn => {
-    btn.addEventListener("click", renderTimeline);
-  });
+  render();
+  document.querySelectorAll('nav button[data-target="page-nights"]').forEach(b=>b.addEventListener("click",render));
 });
-// === 🧮 Vollständiger AYTO-Solver (optimiert + Fortschrittsanzeige + Perfect-Match-Fix) ===
-window.addEventListener("DOMContentLoaded", () => {
-  const solveBtn = document.getElementById("solveBtn");
-  const summaryBox = document.getElementById("summary");
-  const logsBox = document.getElementById("logs");
-  const matrixBox = document.getElementById("matrix");
 
-  if (!solveBtn) return;
+/* === 📊 Solver mit synchronem Ladebalken === */
+window.addEventListener("DOMContentLoaded",()=>{
+  const solveBtn=document.getElementById("solveBtn"),
+        summary=document.getElementById("summary"),
+        logs=document.getElementById("logs"),
+        matrix=document.getElementById("matrix");
+  if(!solveBtn) return;
 
-  // --- Overlay-Funktionen ---
-  function showOverlay() {
-    const ov = document.getElementById("overlay");
-    if (ov) ov.classList.add("show");
-    updateOverlay(0);
+  const get=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d;}catch{return d;}};
+  const getT=()=>get("aytoTeilnehmer",{A:[],B:[]});
+  const getM=()=>get("aytoMatchbox",[]);
+  const getN=()=>get("aytoMatchingNights",[]);
+
+  async function exportMatrix(){
+    const el=document.querySelector(".ayto-table-container"); if(!el) return alert("Keine Matrix gefunden!");
+    const canvas=await html2canvas(el,{scale:2,backgroundColor:"#1a1b2b"});
+    const a=document.createElement("a"); a.download="AYTO-Matrix.png"; a.href=canvas.toDataURL("image/png"); a.click();
   }
 
-  function hideOverlay() {
-    const ov = document.getElementById("overlay");
-    if (!ov) return;
-    const title = ov.querySelector(".overlay-title");
-    const bar = ov.querySelector(".bar");
-    if (title && bar) {
-      title.textContent = "Fertig! ✅";
-      bar.style.width = "100%";
-      setTimeout(() => ov.classList.remove("show"), 800);
-    } else {
-      ov.classList.remove("show");
-    }
-  }
-
-  function updateOverlay(pct) {
-    const title = document.querySelector(".overlay-title");
-    const bar = document.querySelector(".bar");
-    if (title) title.textContent = `Berechnung läuft... (${pct.toFixed(0)}%)`;
-    if (bar) bar.style.width = `${pct}%`;
-  }
-
-  // --- Helper ---
-  const getTeilnehmer = () => JSON.parse(localStorage.getItem("aytoTeilnehmer") || '{"A":[],"B":[]}');
-  const getMatchbox = () => JSON.parse(localStorage.getItem("aytoMatchbox") || "[]");
-  const getNights = () => JSON.parse(localStorage.getItem("aytoMatchingNights") || "[]");
-
-  // --- Screenshot-Export ---
-  async function exportMatrix() {
-    const el = document.querySelector(".ayto-table-container");
-    if (!el) return alert("Keine Matrix gefunden!");
-    const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#1a1b2b" });
-    const a = document.createElement("a");
-    a.download = "AYTO-Matrix.png";
-    a.href = canvas.toDataURL("image/png");
-    a.click();
-  }
-
-  // --- Hauptfunktion ---
-  async function berechne() {
-    const { A, B } = getTeilnehmer();
-    const matchbox = getMatchbox();
-    const nights = getNights();
-
-    if (A.length === 0 || B.length === 0) {
-      alert("Bitte zuerst Teilnehmer hinzufügen!");
-      return;
-    }
-
-    // Frühabbruch bei zu wenigen Eingaben
-    if (matchbox.length === 0 && nights.length === 0) {
-      summaryBox.innerHTML = `
-        <div class="warning" style="margin-top:10px">
-          ⚠ Bitte gib zuerst mindestens eine Matchbox-Entscheidung oder eine Matching Night ein.<br>
-          Ohne Einschränkungen wäre die Berechnung zu groß (über ${A.length}! Kombinationen).
-        </div>
-      `;
-      return;
-    }
-
+  async function berechne(){
+    const overlay=document.getElementById("overlay");
+    const progressBar=overlay?.querySelector(".progress .bar");
+    progressBar.style.width="0%";
     showOverlay();
-    summaryBox.innerHTML = "<h3>Berechnung läuft...</h3>";
-    logsBox.innerHTML = "";
-    matrixBox.innerHTML = "";
-    matrixBox.style.display = "block";
 
-    const perfectMatches = matchbox.filter(m => m.type === "PM");
-    const noMatches = new Set(matchbox.filter(m => m.type === "NM").map(m => `${m.A}-${m.B}`));
+    const {A,B}=getT(), M=getM(), Nraw=getN();
+    if(!A.length||!B.length){hideOverlay();return alert("Bitte zuerst Teilnehmer hinzufügen!");}
+    const N=Nraw.map(n=>({lights:n.lights,pairs:n.pairs.filter(p=>p.B)}));
+    const PM=M.filter(x=>x.type==="PM");
+    const NM=new Set(M.filter(x=>x.type==="NM").map(x=>`${x.A}-${x.B}`));
 
-    logsBox.innerHTML += `<div>${A.length}×${B.length} Teilnehmer</div>`;
-    logsBox.innerHTML += `<div>${perfectMatches.length} Perfect Matches, ${noMatches.size} No Matches, ${nights.length} Nights</div>`;
-    if (A.length !== B.length)
-      logsBox.innerHTML += `<div class="warning">⚠ Ungleichgewicht: ${A.length}×${B.length}</div>`;
+    summary.innerHTML="<h3>Berechnung läuft...</h3>";
+    logs.innerHTML=""; matrix.innerHTML="";
+    const counts={}; A.forEach(a=>B.forEach(b=>counts[`${a}-${b}`]=0));
+    let total=0,tested=0;
 
-    // --- Gültigkeitsprüfung ---
-    function isValid(assign) {
-      for (const nm of noMatches)
-        if (assign.some(p => `${p.A}-${p.B}` === nm)) return false;
-      for (const pm of perfectMatches)
-        if (assign.some(p => p.A === pm.A && p.B !== pm.B)) return false;
-      for (const n of nights) {
-        const correct = n.pairs.filter(p => assign.some(a => a.A === p.A && a.B === p.B)).length;
-        if (correct !== n.lights) return false;
-      }
+    function isValid(assign){
+      for(const nm of NM) if(assign.some(p=>`${p.A}-${p.B}`===nm)) return false;
+      for(const pm of PM) if(assign.some(p=>p.A===pm.A&&p.B!==pm.B)) return false;
+      for(const n of N){const c=n.pairs.filter(p=>assign.some(a=>a.A===p.A&&a.B===p.B)).length;if(c!==n.lights)return false;}
       return true;
     }
 
-    // --- Backtracking-Solver (DFS) ---
-    const validAssignments = [];
-    let tested = 0;
-    let lastPct = 0;
-
-    function dfs(i, usedB, current) {
-      if (i === A.length) {
-        if (isValid(current)) validAssignments.push([...current]);
-        tested++;
-        if (tested % 1000 === 0) {
-          const pct = Math.min(99, (tested / (tested + 10000)) * 100);
-          if (pct - lastPct >= 1) {
-            updateOverlay(pct);
-            lastPct = pct;
-          }
-        }
-        return;
-      }
-
-      for (let j = 0; j < B.length; j++) {
-        if (usedB.has(j)) continue;
-        const a = A[i], b = B[j];
-        if (noMatches.has(`${a}-${b}`)) continue;
-        const pm = perfectMatches.find(p => p.A === a);
-        if (pm && pm.B !== b) continue;
-        usedB.add(j);
-        current.push({ A: a, B: b });
-        dfs(i + 1, usedB, current);
-        current.pop();
-        usedB.delete(j);
-      }
-
-      // Ungleichgewicht: eine A-Person kann aussetzen
-      if (A.length > B.length) dfs(i + 1, usedB, current);
+    function updateProgress(c,m){
+      if(!progressBar)return;
+      const pct=Math.min(100,(c/m)*100);
+      progressBar.style.width=pct.toFixed(1)+"%";
     }
 
-    dfs(0, new Set(), []);
-    updateOverlay(100);
+    const maxIter=Math.pow(Math.min(A.length,B.length),2)*2;
+    const start=performance.now();
 
-    // --- Perfect-Match-Fix ---
-    const counts = {};
-    A.forEach(a => B.forEach(b => counts[`${a}-${b}`] = 0));
-    validAssignments.forEach(assign =>
-      assign.forEach(p => counts[`${p.A}-${p.B}`]++)
-    );
-
-    for (const pm of perfectMatches) {
-      A.forEach(a => counts[`${a}-${pm.B}`] = a === pm.A ? validAssignments.length : 0);
-      B.forEach(b => counts[`${pm.A}-${b}`] = b === pm.B ? validAssignments.length : 0);
+    function dfs(i,used,cur){
+      tested++;
+      if(tested%50===0)updateProgress(tested,maxIter);
+      if(i===A.length){if(isValid(cur)){total++;cur.forEach(p=>counts[`${p.A}-${p.B}`]++);}return;}
+      for(let j=0;j<B.length;j++){
+        if(used.has(j))continue;
+        const a=A[i],b=B[j];
+        if(NM.has(`${a}-${b}`))continue;
+        const pm=PM.find(p=>p.A===a); if(pm&&pm.B!==b)continue;
+        used.add(j);cur.push({A:a,B:b});dfs(i+1,used,cur);cur.pop();used.delete(j);
+      }
+      if(A.length>B.length)dfs(i+1,used,cur);
     }
+    dfs(0,new Set(),[]);
+    updateProgress(1,1); hideOverlay();
 
-    // --- Zusammenfassung ---
-    summaryBox.innerHTML = `
-      <h3>Ergebnis</h3>
-      <div>${A.length}×${B.length} Teilnehmer</div>
-      <div>${validAssignments.length} gültige Kombination(en)</div>
-      <button id="exportMatrix" class="primary" style="margin-top:8px">Matrix speichern (PNG)</button>
-    `;
-    document.getElementById("exportMatrix").onclick = exportMatrix;
+    const dur=((performance.now()-start)/1000).toFixed(2);
+    summary.innerHTML=`<h3>Ergebnis</h3>
+    <div>${A.length}×${B.length} Teilnehmer</div>
+    <div>${total} gültige Kombinationen (${tested} geprüft, ${dur}s)</div>
+    <button id="exportMatrix" class="primary" style="margin-top:8px">Matrix speichern (PNG)</button>`;
+    document.getElementById("exportMatrix").onclick=exportMatrix;
 
-    // --- Matrix erzeugen ---
-    let table = `
-    <style>
-      .ayto-table-container {
-        overflow-x:auto;
-        margin-top:10px;
-        border-radius:10px;
-        box-shadow:0 0 12px rgba(0,0,0,0.3);
-      }
-      .ayto-table {
-        width:100%;
-        border-collapse:collapse;
-        background:rgba(25,27,45,0.9);
-        font-size:13px;
-      }
-      .ayto-table th, .ayto-table td {
-        padding:6px 8px;
-        text-align:center;
-        border:1px solid rgba(255,255,255,0.05);
-        white-space:nowrap;
-      }
-      .ayto-table th {
-        background:rgba(35,38,60,0.95);
-        color:#eee;
-        font-weight:600;
-        position:sticky;
-        top:0;
-        z-index:2;
-      }
-      .ayto-table .a-name {
-        background:rgba(35,38,60,0.9);
-        text-align:left;
-        font-weight:600;
-        color:#ddd;
-        position:sticky;
-        left:0;
-        z-index:3;
-      }
-      .ayto-tooltip {
-        visibility:hidden;
-        position:absolute;
-        background:rgba(0,0,0,0.85);
-        color:#fff;
-        text-align:center;
-        border-radius:6px;
-        padding:3px 6px;
-        font-size:12px;
-        bottom:120%;
-        left:50%;
-        transform:translateX(-50%);
-        opacity:0;
-        transition:opacity 0.3s;
-        pointer-events:none;
-        white-space:nowrap;
-      }
-      .ayto-table td:hover .ayto-tooltip {
-        visibility:visible;
-        opacity:1;
-      }
-    </style>
-    <div class="ayto-table-container">
-    <table class="ayto-table">
-      <tr><th>A \\ B</th>${B.map(b => `<th>${b}</th>`).join("")}</tr>
-    `;
+    if(!total){matrix.innerHTML="<h3>Keine gültige Kombination gefunden!</h3>";return;}
 
-    A.forEach(a => {
-      table += `<tr><td class="a-name">${a}</td>`;
-      B.forEach(b => {
-        let c = counts[`${a}-${b}`];
-        let pct = (c / validAssignments.length) * 100;
-        if (perfectMatches.some(pm => pm.A === a && pm.B === b)) pct = 100;
-        if (noMatches.has(`${a}-${b}`)) pct = 0;
-        const hue = pct === 0 ? 0 : pct === 100 ? 120 : pct * 1.2;
-        const bg = `hsl(${hue},75%,${Math.min(25 + pct * 0.3,55)}%)`;
-        const tooltip = `${pct.toFixed(2)}% (${c}/${validAssignments.length})`;
-        table += `<td style="background:${bg};color:#fff;position:relative">${pct.toFixed(0)}%<div class="ayto-tooltip">${tooltip}</div></td>`;
+    let html=`<div class="ayto-table-container"><table class="ayto-table"><tr><th>A\\B</th>${B.map(b=>`<th>${b}</th>`).join("")}</tr>`;
+    A.forEach(a=>{
+      html+=`<tr><td class="a-name">${a}</td>`;
+      B.forEach(b=>{
+        let pct=(counts[`${a}-${b}`]/total)*100;
+        if(PM.some(pm=>pm.A===a&&pm.B===b))pct=100;
+        if(NM.has(`${a}-${b}`))pct=0;
+        const hue=pct===0?0:pct===100?120:pct*1.2;
+        const bg=`hsl(${hue},75%,${Math.min(25+pct*0.3,55)}%)`;
+        html+=`<td style="background:${bg};color:#fff">${pct.toFixed(0)}%</td>`;
       });
-      table += "</tr>";
+      html+="</tr>";
     });
-
-    table += "</table></div>";
-    matrixBox.innerHTML = table;
-
-    hideOverlay();
+    html+="</table></div>";
+    matrix.innerHTML=html;
   }
 
-  solveBtn.addEventListener("click", berechne);
+  solveBtn.onclick=berechne;
 });
