@@ -28,6 +28,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
     };
   }
 });
+
 // === Teilnehmer-Verwaltung mit localStorage ===
 window.addEventListener("DOMContentLoaded", () => {
   const listA = document.getElementById("listA");
@@ -35,67 +36,66 @@ window.addEventListener("DOMContentLoaded", () => {
   const addA = document.getElementById("addA");
   const addB = document.getElementById("addB");
   const warn = document.getElementById("warnBalance");
+  if(!listA || !listB || !addA || !addB) return;
 
-  // --- LocalStorage Schlüssel ---
   const STORAGE_KEY = "aytoTeilnehmer";
 
-  // --- Teilnehmer laden ---
-  function loadData() {
-    const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{"A":[],"B":[]}');
-    listA.innerHTML = "";
-    listB.innerHTML = "";
-    data.A.forEach(name => createPerson(name, "A", false));
-    data.B.forEach(name => createPerson(name, "B", false));
-    checkBalance();
+  function getData() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return { A: [], B: [] };
+      const parsed = JSON.parse(raw);
+      return { A: Array.isArray(parsed.A) ? parsed.A : [], B: Array.isArray(parsed.B) ? parsed.B : [] };
+    } catch (e) {
+      console.warn("Konnte localStorage nicht lesen:", e);
+      return { A: [], B: [] };
+    }
   }
-
-  // --- Teilnehmer speichern ---
   function saveData() {
     const A = [...listA.querySelectorAll("input")].map(i => i.value.trim()).filter(Boolean);
     const B = [...listB.querySelectorAll("input")].map(i => i.value.trim()).filter(Boolean);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ A, B }));
   }
 
-  // --- Person-Element erzeugen ---
   function createPerson(name, group, save = true) {
     const div = document.createElement("div");
     div.className = "row";
     div.innerHTML = `
       <input type="text" value="${name}" placeholder="Name eingeben" style="flex:1">
-      <button class="danger small">✖</button>
+      <button class="danger small" title="Löschen">✖</button>
     `;
-
-    // Änderungen speichern
     const input = div.querySelector("input");
     input.addEventListener("input", saveData);
-
-    // Lösch-Button
     div.querySelector("button").addEventListener("click", () => {
       div.remove();
       saveData();
       checkBalance();
     });
-
-    if (group === "A") listA.appendChild(div);
-    else listB.appendChild(div);
-
+    (group === "A" ? listA : listB).appendChild(div);
     if (save) saveData();
     checkBalance();
   }
 
-  // --- Balance prüfen ---
+  function loadData() {
+    const data = getData();
+    listA.innerHTML = "";
+    listB.innerHTML = "";
+    data.A.forEach(n => createPerson(n, "A", false));
+    data.B.forEach(n => createPerson(n, "B", false));
+    checkBalance();
+  }
+
   function checkBalance() {
     const aCount = listA.children.length;
     const bCount = listB.children.length;
     if (Math.abs(aCount - bCount) > 1) {
       warn.style.display = "block";
-      warn.textContent = `⚠ Ungleichgewicht: ${aCount} A-Person(en) vs. ${bCount} B-Person(en).`;
+      warn.textContent = `⚠ Ungleichgewicht: ${aCount} A‑Person(en) vs. ${bCount} B‑Person(en).`;
     } else {
       warn.style.display = "none";
     }
   }
 
-  // --- Buttons ---
   addA.addEventListener("click", () => {
     createPerson(`A${listA.children.length + 1}`, "A");
   });
@@ -103,6 +103,17 @@ window.addEventListener("DOMContentLoaded", () => {
     createPerson(`B${listB.children.length + 1}`, "B");
   });
 
-  // --- Initial laden ---
+  // Optional: Reset-Button in "Matchingnight"-Sektion leert auch Teilnehmer
+  const resetBtn = document.getElementById("resetBtn");
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => {
+      localStorage.removeItem(STORAGE_KEY);
+      listA.innerHTML = "";
+      listB.innerHTML = "";
+      checkBalance();
+    });
+  }
+
+  // Start mit geladenen Daten
   loadData();
 });
