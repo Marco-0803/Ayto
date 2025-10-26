@@ -1,49 +1,63 @@
-/* ===========================
-   AYTO Solver 2025 – App.js
-   =========================== */
-
-// ---- Originale Solver-Logik ----
-// (dieser Teil stammt aus deiner Datei ayto-solver-pwa-v2-fixed.html)
-
-const PREFILL_A = ["Anna","Caro","Jasmin","Leonie","Mareike","Nina","Sabrina","Sarah","Tina","Vivien","Zoe"];
-const PREFILL_B = ["Alex","Ben","Chris","David","Elias","Finn","Jan","Luca","Marco","Phil","Tom"];
-
-let data = { A:[], B:[], nights:[], matchbox:[] };
-let logs = [];
-
-function addPerson(listId, name="") {
+// ---- Teilnehmer hinzufügen & löschen ----
+function addPerson(listId, name = "") {
   const list = document.getElementById(listId);
+  if (!list) return;
+
+  const item = document.createElement("div");
+  item.className = "person-item";
+
   const input = document.createElement("input");
+  input.type = "text";
   input.value = name;
-  input.placeholder = listId==="listA"?"A-Person":"B-Person";
-  list.appendChild(input);
+  input.placeholder = listId === "listA" ? "A-Person" : "B-Person";
+
+  const delBtn = document.createElement("button");
+  delBtn.textContent = "🗑️";
+  delBtn.className = "del-btn";
+  delBtn.title = "Eintrag löschen";
+  delBtn.onclick = () => {
+    if (confirm("Diesen Eintrag wirklich löschen?")) {
+      item.remove();
+    }
+  };
+
+  item.appendChild(input);
+  item.appendChild(delBtn);
+  list.appendChild(item);
 }
 
-function renderNames(a, b) {
+// ---- Kurzbefehle für A- und B-Gruppen ----
+function addA(name = "") { addPerson("listA", name); }
+function addB(name = "") { addPerson("listB", name); }
+
+// ---- Staffel 2025 vorbelegen ----
+function prefill2025() {
+  const aList = [
+    "Alicia", "Laura", "Nina", "Sophie", "Anna",
+    "Julia", "Kim", "Sarah", "Lena", "Maya", "Tanja"
+  ];
+  const bList = [
+    "Tom", "Luca", "Max", "Noah", "Jonas",
+    "Finn", "Ben", "Leon", "Elias", "Paul"
+  ];
+
   document.getElementById("listA").innerHTML = "";
   document.getElementById("listB").innerHTML = "";
-  a.forEach(n => addPerson("listA", n));
-  b.forEach(n => addPerson("listB", n));
+
+  aList.forEach(n => addA(n));
+  bList.forEach(n => addB(n));
+
+  alert("Staffel 2025 wurde erfolgreich geladen!");
 }
 
-function prefill2025() {
-  renderNames(PREFILL_A, PREFILL_B);
-}
-
+// ---- Dummy Berechnung mit Overlay ----
 function solve() {
-  const status = document.getElementById("status");
-  const summary = document.getElementById("summary");
-  const logsBox = document.getElementById("logs");
-  status.textContent = "Berechne...";
-  summary.innerHTML = "";
-  logsBox.innerHTML = "";
-
-  // Dummy Berechnung
-  setTimeout(()=>{
-    status.textContent = "Fertig ✅";
-    summary.innerHTML = "<p>11 A-Kandidatinnen × 10 B-Kandidaten – Berechnung abgeschlossen.</p>";
-    logsBox.innerHTML = "<div class='tag good'>Alles konsistent</div>";
-  }, 1200);
+  const overlay = document.getElementById("overlay");
+  overlay.classList.add("show");
+  setTimeout(() => {
+    overlay.classList.remove("show");
+    alert("Berechnung abgeschlossen!");
+  }, 2000);
 }
 
 // ---- Bottom-Navigation ----
@@ -57,11 +71,11 @@ if (nav) {
     btn.classList.add("active");
     const id = btn.getAttribute("data-target");
     pages.forEach(p => p.classList.toggle("active", p.id === id));
-    window.scrollTo({ top:0, behavior:"smooth" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   });
 }
 
-// ---- Overlay-Hilfsfunktionen ----
+// ---- Overlay-Helfer ----
 function showOverlay() {
   const ov = document.getElementById("overlay");
   if (ov) ov.classList.add("show");
@@ -71,25 +85,17 @@ function hideOverlay() {
   if (ov) ov.classList.remove("show");
 }
 
-// ---- Buttons binden ----
+// ---- Buttons verbinden ----
 window.addEventListener("DOMContentLoaded", () => {
   const solveBtn = document.getElementById("solveBtn");
-  if (solveBtn) {
-    solveBtn.onclick = () => {
-      showOverlay();
-      setTimeout(() => {
-        try { solve(); }
-        finally { hideOverlay(); }
-      }, 2000);
-    };
-  }
+  if (solveBtn) solveBtn.onclick = solve;
 
-  const addA = document.getElementById("addA");
-  if (addA) addA.onclick = () => addPerson("listA");
+  const addAButton = document.getElementById("addA");
+  if (addAButton) addAButton.onclick = () => addA();
 
-  const addB = document.getElementById("addB");
-  if (addB) addB.onclick = () => addPerson("listB");
+  const addBButton = document.getElementById("addB");
+  if (addBButton) addBButton.onclick = () => addB();
 
-  const prefill = document.getElementById("prefill");
-  if (prefill) prefill.onclick = () => prefill2025();
+  const prefillButton = document.getElementById("prefill");
+  if (prefillButton) prefillButton.onclick = prefill2025;
 });
