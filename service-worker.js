@@ -9,7 +9,7 @@ const APP_SHELL = [
   'manifest.json',
   'icons/icon-192.png',
   'icons/icon-512.png',
-  'icons/ayto-logo.jpg'
+  'icons/ayto-logo.png'
 ];
 
 self.addEventListener('install', event => {
