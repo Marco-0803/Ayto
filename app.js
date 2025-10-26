@@ -117,7 +117,7 @@ window.addEventListener("DOMContentLoaded", () => {
   // Start mit geladenen Daten
   loadData();
 });
-// === Matchbox-Logik mit Speicherung ===
+// === Matchbox-Logik mit dynamischer Teilnehmer-Verknüpfung ===
 window.addEventListener("DOMContentLoaded", () => {
   const tbA = document.getElementById("tbA");
   const tbB = document.getElementById("tbB");
@@ -125,12 +125,49 @@ window.addEventListener("DOMContentLoaded", () => {
   const tbAdd = document.getElementById("addTB");
   const tbList = document.getElementById("tbList");
 
-  const STORAGE_KEY_MATCHES = "aytoMatchbox";
-  const STORAGE_KEY_TEILNEHMER = "aytoTeilnehmer";
-
   if (!tbA || !tbB || !tbType || !tbAdd || !tbList) return;
 
-  // ------------------- Hilfsfunktionen -------------------
+  const STORAGE_KEY_TEILNEHMER = "aytoTeilnehmer";
+  const STORAGE_KEY_MATCHES = "aytoMatchbox";
+
+  // -------- Teilnehmer abrufen --------
+  function getTeilnehmer() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_TEILNEHMER);
+      if (!raw) return { A: [], B: [] };
+      const parsed = JSON.parse(raw);
+      return {
+        A: Array.isArray(parsed.A) ? parsed.A : [],
+        B: Array.isArray(parsed.B) ? parsed.B : []
+      };
+    } catch (e) {
+      console.warn("Fehler beim Lesen der Teilnehmer:", e);
+      return { A: [], B: [] };
+    }
+  }
+
+  // -------- Dropdowns neu befüllen --------
+  function refreshDropdowns() {
+    const { A, B } = getTeilnehmer();
+
+    tbA.innerHTML = '<option value="">— A auswählen —</option>';
+    A.forEach(name => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      tbA.appendChild(opt);
+    });
+
+    tbB.innerHTML = '<option value="">— B auswählen —</option>';
+    B.forEach(name => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      tbB.appendChild(opt);
+    });
+  }
+
+  // -------- Matchbox-Einträge laden/speichern --------
   function loadMatches() {
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEY_MATCHES)) || [];
@@ -139,19 +176,17 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function saveMatches(matches) {
-    localStorage.setItem(STORAGE_KEY_MATCHES, JSON.stringify(matches));
+  function saveMatches(arr) {
+    localStorage.setItem(STORAGE_KEY_MATCHES, JSON.stringify(arr));
   }
 
   function renderMatches() {
     const matches = loadMatches();
     tbList.innerHTML = "";
-
     if (matches.length === 0) {
       tbList.innerHTML = "<div class='small muted'>Noch keine Einträge</div>";
       return;
     }
-
     matches.forEach((m, i) => {
       const div = document.createElement("div");
       div.className = "row";
@@ -168,85 +203,44 @@ window.addEventListener("DOMContentLoaded", () => {
         <button class="danger small">✖</button>
       `;
       div.querySelector("button").addEventListener("click", () => {
-        matches.splice(i, 1);
-        saveMatches(matches);
+        const arr = loadMatches();
+        arr.splice(i, 1);
+        saveMatches(arr);
         renderMatches();
       });
       tbList.appendChild(div);
     });
   }
 
-  // ------------------- Dropdown aktualisieren -------------------
-  function getTeilnehmer() {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY_TEILNEHMER)) || { A: [], B: [] };
-    } catch {
-      return { A: [], B: [] };
-    }
-  }
-
-  function refreshDropdowns() {
-    const data = getTeilnehmer();
-    tbA.innerHTML = "";
-    tbB.innerHTML = "";
-
-    const optA0 = document.createElement("option");
-    optA0.value = "";
-    optA0.textContent = "— A auswählen —";
-    tbA.appendChild(optA0);
-    data.A.forEach(name => {
-      const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name;
-      tbA.appendChild(opt);
-    });
-
-    const optB0 = document.createElement("option");
-    optB0.value = "";
-    optB0.textContent = "— B auswählen —";
-    tbB.appendChild(optB0);
-    data.B.forEach(name => {
-      const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name;
-      tbB.appendChild(opt);
-    });
-  }
-
-  // Änderungen an Teilnehmern beobachten (im selben Tab)
-  const listA = document.getElementById("listA");
-  const listB = document.getElementById("listB");
-  const observer = new MutationObserver(refreshDropdowns);
-  if (listA && listB) {
-    observer.observe(listA, { childList: true, subtree: true });
-    observer.observe(listB, { childList: true, subtree: true });
-  }
-
-  // ------------------- Hinzufügen -------------------
+  // -------- Eintrag hinzufügen --------
   tbAdd.addEventListener("click", () => {
-    const a = tbA.value;
-    const b = tbB.value;
+    const a = tbA.value.trim();
+    const b = tbB.value.trim();
     const type = tbType.value;
-
     if (!a || !b) {
       alert("Bitte A und B auswählen!");
       return;
     }
-
-    const matches = loadMatches();
-
-    // Doppel vermeiden
-    if (matches.some(m => m.A === a && m.B === b)) {
+    const arr = loadMatches();
+    if (arr.some(m => m.A === a && m.B === b)) {
       alert("Dieses Paar existiert bereits.");
       return;
     }
-
-    matches.push({ A: a, B: b, type });
-    saveMatches(matches);
+    arr.push({ A: a, B: b, type });
+    saveMatches(arr);
     renderMatches();
   });
 
-  // ------------------- Initial laden -------------------
+  // -------- Reaktion auf Teilnehmeränderung --------
+  const listA = document.getElementById("listA");
+  const listB = document.getElementById("listB");
+  const observer = new MutationObserver(() => {
+    refreshDropdowns();
+  });
+  if (listA) observer.observe(listA, { childList: true, subtree: true });
+  if (listB) observer.observe(listB, { childList: true, subtree: true });
+
+  // -------- Startinitialisierung --------
   refreshDropdowns();
   renderMatches();
 });
