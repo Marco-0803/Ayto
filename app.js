@@ -486,13 +486,19 @@ window.addEventListener("DOMContentLoaded", () => {
       for (const p of (nObj.pairs || [])) {
         if (!(p.A in idxA)) continue;
         const i = idxA[p.A];
-        if (p.B && (p.B in idxB)) {
+
+        // 🟢 FIXED: "Keine Partnerin" oder leer = NONE
+        if (!p.B || /^keine$/i.test(p.B) || /partnerin/i.test(p.B)) {
+          map[i] = NONE;
+          empties++;
+        } else if (p.B in idxB) {
           map[i] = idxB[p.B];
         } else {
-          map[i] = NONE; // „keine Partnerin“ gewählt
+          map[i] = NONE;
           empties++;
         }
       }
+
       // Validierung pro Night
       if (A.length === B.length && empties > 0) {
         return { ok:false, error:"In einer Night (A=B) darf niemand ohne Partnerin sein.", A, B };
@@ -596,7 +602,6 @@ window.addEventListener("DOMContentLoaded", () => {
       nodes++;
       if ((nodes & 0x3FF) === 0) { // alle ~1024 Knoten
         const elapsed = performance.now() - t0;
-        // weiche Kurve 0..85% + Zeitanteil → reine Heuristik
         const est = Math.min(85, 100 * (1 - Math.exp(-nodes/40000)));
         const timeBoost = Math.min(15, (elapsed / HARD_TIMEOUT_MS) * 15);
         setProgress(est + timeBoost);
@@ -610,7 +615,6 @@ window.addEventListener("DOMContentLoaded", () => {
         if (!allowNone || (allowNone && usedNone === 1)) {
           if (!satisfied()) return;
           total++;
-          // zählen nur echte Paare A×B (keine NONE)
           for (let i=0;i<m;i++) {
             const j = assign[i];
             if (j >= 0 && j < n) counts[i][j]++;
@@ -629,7 +633,6 @@ window.addEventListener("DOMContentLoaded", () => {
         } else {
           if (usedWoman[j]) continue;
           assign[i] = j; usedWoman[j] = true;
-          // Schnellprüfungen: andere Ein-Wert-Domänen dürfen nicht auf dieselbe Frau gezwungen werden
           let ok = true;
           for (const k of order) {
             if (k === i || assign[k] !== -1) continue;
@@ -648,10 +651,8 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Start Suche
     dfs(0);
 
-    // Ergebnis/Timeout
     setProgress(100);
     const durMs = Math.round(performance.now() - t0);
 
@@ -661,7 +662,6 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Zusammenfassung
     summaryBox.innerHTML = `
       <h3>Ergebnis</h3>
       <div>${A.length}×${B.length} Teilnehmer</div>
@@ -677,16 +677,14 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Matrix (ohne „ohne Partnerin“-Spalte!)
     let html = `
       <div class="ayto-table-container">
       <table class="ayto-table" style="width:100%;border-collapse:collapse">
         <tr><th>A \\ B</th>${B.map(b=>`<th>${b}</th>`).join("")}</tr>
     `;
-    // Prozentwerte berechnen
-    const toPct = (num) => Number((num * 10000n) / total) / 100; // 2 Nachkommastellen
+    const toPct = (num) => Number((num * 10000n) / total) / 100;
     for (let i=0;i<m;i++) {
-      html += `<tr><td class="a-name" style="position:sticky;left:0;background:#23283f;font-weight:600">${A[i]}</td>`;
+      html += `<tr><td style="position:sticky;left:0;background:#23283f;font-weight:600">${A[i]}</td>`;
       for (let j=0;j<n;j++) {
         const p = toPct(counts[i][j]);
         const hue = p === 0 ? 0 : p === 100 ? 120 : p * 1.2;
