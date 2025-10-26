@@ -1,32 +1,33 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="theme-color" content="#346FFF"/>
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="AYTO Solver 2025">
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="AYTO Solver 2025"/>
   <title>AYTO Solver 2025</title>
-  <link rel="manifest" href="/Ayto/manifest.json">
-  <link rel="apple-touch-icon" href="/Ayto/icons/icon-192.png">
-  <link rel="stylesheet" href="/Ayto/style.css">
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icons/icon-192.png"/>
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
   <header>
-    <img class="logo" src="/Ayto/icons/ayto-logo.jpg" alt="AYTO Logo">
+    <img class="logo" src="icons/ayto-logo.jpg" alt="AYTO Logo"/>
     <h1>AYTO Solver 2025</h1>
-    <div class="small">Installierbare PWA • Offline nutzbar • /Ayto/</div>
+    <div class="small">Offline nutzbar • Installierbar • v2025</div>
   </header>
 
   <main>
+    <!-- 👥 Teilnehmer -->
     <section id="page-teilnehmer" class="page active">
       <div class="card stack">
         <h2>👥 Teilnehmer</h2>
         <div class="row">
           <button id="prefill" class="ghost">🔁 Staffel 2025 vorbelegen (11 A / 10 B)</button>
-          <button id="addA" class="ghost">+ A‑Person</button>
-          <button id="addB" class="ghost">+ B‑Person</button>
+          <button id="addA" class="ghost">+ A-Person</button>
+          <button id="addB" class="ghost">+ B-Person</button>
         </div>
         <div class="row">
           <div class="stack" style="flex:1">
@@ -40,8 +41,20 @@
         </div>
         <div id="warnBalance" class="warning small" style="display:none"></div>
       </div>
+
+      <div class="card stack">
+        <h2>💾 Import/Export</h2>
+        <div class="row">
+          <button id="exportBtn">Export</button>
+          <input type="file" id="importFile" style="display:none"/>
+          <button id="importBtn">Import</button>
+          <button id="resetBtn" class="danger">Zurücksetzen</button>
+        </div>
+        <div id="err" class="small"></div>
+      </div>
     </section>
 
+    <!-- 💞 Matchbox -->
     <section id="page-matchbox" class="page">
       <div class="card stack">
         <h2>💞 Matchbox</h2>
@@ -58,29 +71,25 @@
       </div>
     </section>
 
+    <!-- 🌙 Matchingnight -->
     <section id="page-entscheidungen" class="page">
       <div class="card stack">
         <h2>🌙 Matchingnight</h2>
-        <div class="small muted">Bei 11×10 muss genau <b>eine</b> A‑Person ohne Partnerin bleiben.</div>
+        <div class="small muted">Bei 11×10 muss genau <b>eine</b> A-Person ohne Partnerin bleiben.</div>
         <div class="row"><button id="addNight" class="ghost">+ Night anlegen</button></div>
         <div id="nights" class="list" style="margin-top:6px"></div>
-        <div class="row" style="margin-top:8px">
-          <button id="exportBtn">Export</button>
-          <input type="file" id="importFile" style="display:none" />
-          <button id="importBtn">Import</button>
-          <button id="resetBtn" class="danger">Zurücksetzen</button>
-        </div>
-        <div id="err" class="small"></div>
       </div>
     </section>
 
+    <!-- 🕒 Nights (Timeline) -->
     <section id="page-nights" class="page">
       <div class="card stack">
-        <h2>🕒 Timeline</h2>
+        <h2>🕒 Nights</h2>
         <div class="timeline" id="timelineBox"></div>
       </div>
     </section>
 
+    <!-- 📊 Ergebnisse -->
     <section id="page-ergebnisse" class="page">
       <div class="card stack">
         <h2>📊 Ergebnisse</h2>
@@ -95,6 +104,7 @@
     </section>
   </main>
 
+  <!-- Bottom Navigation -->
   <nav class="bottom-nav" id="nav">
     <button class="active" data-target="page-teilnehmer"><span class="icon">👥</span>Teilnehmer</button>
     <button data-target="page-matchbox"><span class="icon">💞</span>Matchbox</button>
@@ -103,23 +113,25 @@
     <button data-target="page-ergebnisse"><span class="icon">📊</span>Ergebnisse</button>
   </nav>
 
+  <!-- Overlay -->
   <div id="overlay">
     <div class="overlay-box">
-      <img class="overlay-logo" src="/Ayto/icons/ayto-logo.jpg" alt="AYTO Logo">
+      <img class="overlay-logo" src="icons/ayto-logo.jpg" alt="AYTO Logo"/>
       <h3 class="overlay-title">Berechnung läuft...</h3>
       <div class="progress"><div class="bar"></div></div>
     </div>
   </div>
 
-  <script src="/Ayto/app.js"></script>
+  <script src="app.js"></script>
   <script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-      navigator.serviceWorker.register('/Ayto/service-worker.js').catch(function(e){
-        console.log('SW registration failed', e);
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        // Bei Bedarf ?no-sw anhängen, um den SW zu umgehen.
+        if (!location.search.includes('no-sw')) {
+          navigator.serviceWorker.register('service-worker.js');
+        }
       });
-    });
-  }
+    }
   </script>
 </body>
 </html>
