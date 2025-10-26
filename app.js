@@ -598,31 +598,104 @@ window.addEventListener("DOMContentLoaded", () => {
       assign.forEach(p => counts[`${p.A}-${p.B}`]++)
     );
 
-    // Matrix ausgeben
-    let table = "<table style='width:100%;font-size:12px;border-collapse:collapse'>";
-    table += "<tr><th>A\\B</th>" + B.map(b => `<th>${b}</th>`).join("") + "</tr>";
-    A.forEach(a => {
-      table += `<tr><td><b>${a}</b></td>`;
-      B.forEach(b => {
-        const pct = (counts[`${a}-${b}`] / validAssignments.length) * 100;
-        const color =
-          pct === 0 ? "#300" :
-          pct === 100 ? "#0a0" :
-          pct > 50 ? "#1a1" : "#555";
-        table += `<td style='text-align:center;background:${color};color:white'>${pct.toFixed(0)}%</td>`;
-      });
-      table += "</tr>";
-    });
-    table += "</table>";
-
-    matrixBox.innerHTML = table;
-
-    summaryBox.innerHTML = `
-      <h3>Ergebnisübersicht</h3>
-      <div>Gültige Kombinationen: ${validAssignments.length}</div>
-      <div>Gesamt geprüft: ${tested}</div>
-    `;
+// === Stylische AYTO-Matrix mit Tooltip & Responsive Design ===
+let table = `
+<style>
+  .ayto-table-container {
+    overflow-x: auto;
+    margin-top: 10px;
+    border-radius: 10px;
+    box-shadow: 0 0 12px rgba(0,0,0,0.3);
   }
+  .ayto-table {
+    width: 100%;
+    min-width: 600px;
+    border-collapse: collapse;
+    background: rgba(25,27,45,0.9);
+    font-size: 13px;
+  }
+  .ayto-table th, .ayto-table td {
+    padding: 8px 10px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.05);
+    white-space: nowrap;
+  }
+  .ayto-table th {
+    background: rgba(35,38,60,0.95);
+    color: #eee;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .ayto-table td {
+    color: #fff;
+    position: relative;
+    transition: all 0.25s ease;
+  }
+  .ayto-table td:hover {
+    transform: scale(1.05);
+    filter: brightness(1.4);
+    z-index: 3;
+  }
+  .ayto-table .a-name {
+    background: rgba(35,38,60,0.9);
+    text-align: left;
+    font-weight: 600;
+    color: #ddd;
+    position: sticky;
+    left: 0;
+    z-index: 3;
+  }
+  /* Tooltip */
+  .ayto-tooltip {
+    visibility: hidden;
+    position: absolute;
+    background: rgba(0,0,0,0.85);
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .ayto-table td:hover .ayto-tooltip {
+    visibility: visible;
+    opacity: 1;
+  }
+</style>
+
+<div class="ayto-table-container">
+<table class="ayto-table">
+<tr><th>A \\ B</th>${B.map(b => `<th>${b}</th>`).join("")}</tr>
+`;
+
+A.forEach(a => {
+  table += `<tr><td class="a-name">${a}</td>`;
+  B.forEach(b => {
+    const count = counts[`${a}-${b}`];
+    const pct = (count / validAssignments.length) * 100;
+    const hue = pct === 0 ? 0 : pct === 100 ? 120 : pct * 1.2; // Rot→Grün Skala
+    const bg = `hsl(${hue}, 75%, ${Math.min(25 + pct * 0.3, 55)}%)`;
+    const tooltip = `${pct.toFixed(2)}% (${count} / ${validAssignments.length} gültige Kombinationen)`;
+    table += `
+      <td style="background:${bg}">
+        ${pct.toFixed(0)}%
+        <div class="ayto-tooltip">${tooltip}</div>
+      </td>
+    `;
+  });
+  table += "</tr>";
+});
+table += "</table></div>";
+
+matrixBox.innerHTML = table;
 
   solveBtn.addEventListener("click", berechne);
 });
