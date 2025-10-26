@@ -9,14 +9,14 @@ function addPerson(listId, name = "") {
   const input = document.createElement("input");
   input.type = "text";
   input.value = name;
-  input.placeholder = listId === "listA" ? "A-Person" : "B-Person";
+  input.placeholder = listId === "listA" ? "Name (A)" : "Name (B)";
 
   const delBtn = document.createElement("button");
-  delBtn.textContent = "🗑️";
-  delBtn.className = "del-btn";
+  delBtn.textContent = "Entfernen";
+  delBtn.className = "danger";
   delBtn.title = "Eintrag löschen";
   delBtn.onclick = () => {
-    if (confirm("Diesen Eintrag wirklich löschen?")) {
+    if (confirm("Eintrag wirklich löschen?")) {
       item.remove();
     }
   };
@@ -54,6 +54,15 @@ function prefill2025() {
 function solve() {
   const overlay = document.getElementById("overlay");
   overlay.classList.add("show");
+
+  // Ladebalken reset + starten
+  const bar = document.querySelector(".bar");
+  if (bar) {
+    bar.style.animation = "none";
+    void bar.offsetWidth; // Force reflow
+    bar.style.animation = null;
+  }
+
   setTimeout(() => {
     overlay.classList.remove("show");
     alert("Berechnung abgeschlossen!");
@@ -67,7 +76,11 @@ if (nav) {
   nav.addEventListener("click", (e) => {
     const btn = e.target.closest("button");
     if (!btn) return;
-    document.querySelectorAll(".bottom-nav button").forEach(b => b.classList.remove("active"));
+
+    document
+      .querySelectorAll(".bottom-nav button")
+      .forEach(b => b.classList.remove("active"));
+
     btn.classList.add("active");
     const id = btn.getAttribute("data-target");
     pages.forEach(p => p.classList.toggle("active", p.id === id));
