@@ -487,16 +487,26 @@ window.addEventListener("DOMContentLoaded", () => {
         if (!(p.A in idxA)) continue;
         const i = idxA[p.A];
 
-        // 🟢 FIXED: "Keine Partnerin" oder leer = NONE
-        if (!p.B || /^keine$/i.test(p.B) || /partnerin/i.test(p.B)) {
-          map[i] = NONE;
-          empties++;
-        } else if (p.B in idxB) {
-          map[i] = idxB[p.B];
-        } else {
-          map[i] = NONE;
-          empties++;
-        }
+// 🟢 FIXED v2: Alle Varianten von „keine Partnerin“ oder Sonderzeichen erkennen
+const val = (p.B || "").trim().toLowerCase();
+
+// mögliche Zeichenfolgen, die „ohne Partnerin“ bedeuten
+if (
+  val === "" ||
+  val.includes("keine") ||
+  val.includes("partnerin") ||
+  val.includes("ohne") ||
+  val.includes("—") ||
+  val.includes("-")
+) {
+  map[i] = NONE;
+  empties++;
+} else if (p.B in idxB) {
+  map[i] = idxB[p.B];
+} else {
+  map[i] = NONE;
+  empties++;
+}
       }
 
       // Validierung pro Night
