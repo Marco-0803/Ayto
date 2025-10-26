@@ -8,13 +8,13 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="AYTO Solver 2025">
   <title>AYTO Solver 2025</title>
-  <link rel="manifest" href="/Ayto/manifest.json">
-  <link rel="apple-touch-icon" href="/Ayto/icons/icon-192.png">
-  <link rel="stylesheet" href="/Ayto/style.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    <img class="logo" src="/Ayto/icons/ayto-logo.jpg" alt="AYTO Logo">
+    <img class="logo" src="icons/ayto-logo.jpg" alt="AYTO Logo">
     <h1>AYTO Solver 2025</h1>
     <div class="small">Installierbare PWA • Offline nutzbar • /Ayto/</div>
   </header>
@@ -105,17 +105,17 @@
 
   <div id="overlay">
     <div class="overlay-box">
-      <img class="overlay-logo" src="/Ayto/icons/ayto-logo.jpg" alt="AYTO Logo">
+      <img class="overlay-logo" src="icons/ayto-logo.jpg" alt="AYTO Logo">
       <h3 class="overlay-title">Berechnung läuft...</h3>
       <div class="progress"><div class="bar"></div></div>
     </div>
   </div>
 
-  <script src="/Ayto/app.js"></script>
+  <script src="app.js"></script>
   <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
-      navigator.serviceWorker.register('/Ayto/service-worker.js').catch(function(e){
+      navigator.serviceWorker.register('service-worker.js').catch(function(e){
         console.log('SW registration failed', e);
       });
     });

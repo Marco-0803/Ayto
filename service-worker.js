@@ -1,15 +1,15 @@
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `ayto-solver-${CACHE_VERSION}`;
 const APP_SHELL = [
-  '/Ayto/',
-  '/Ayto/index.html',
-  '/Ayto/style.css',
-  '/Ayto/app.js',
-  '/Ayto/manifest.json',
-  '/Ayto/icons/icon-192.png',
-  '/Ayto/icons/icon-512.png',
-  '/Ayto/icons/ayto-logo.jpg'
+  './',
+  'index.html',
+  'style.css',
+  'app.js',
+  'manifest.json',
+  'icons/icon-192.png',
+  'icons/icon-512.png',
+  'icons/ayto-logo.jpg'
 ];
 
 self.addEventListener('install', event => {
@@ -31,7 +31,7 @@ self.addEventListener('fetch', event => {
         const copy = resp.clone();
         caches.open(CACHE_NAME).then(c=>c.put(req, copy));
         return resp;
-      }).catch(()=> caches.match(req).then(r=> r || caches.match('/Ayto/index.html')))
+      }).catch(()=> caches.match(req).then(r=> r || caches.match('index.html')))
     );
     return;
   }
