@@ -60,7 +60,7 @@
 
     <section id="page-entscheidungen" class="page">
       <div class="card stack">
-        <h2>🎛️ Entscheidungen</h2>
+        <h2>🌙 Matchingnight</h2>
         <div class="small muted">Bei 11×10 muss genau <b>eine</b> A‑Person ohne Partnerin bleiben.</div>
         <div class="row"><button id="addNight" class="ghost">+ Night anlegen</button></div>
         <div id="nights" class="list" style="margin-top:6px"></div>
@@ -76,7 +76,7 @@
 
     <section id="page-nights" class="page">
       <div class="card stack">
-        <h2>🌙 Timeline</h2>
+        <h2>🕒 Timeline</h2>
         <div class="timeline" id="timelineBox"></div>
       </div>
     </section>
@@ -98,28 +98,20 @@
   <nav class="bottom-nav" id="nav">
     <button class="active" data-target="page-teilnehmer"><span class="icon">👥</span>Teilnehmer</button>
     <button data-target="page-matchbox"><span class="icon">💞</span>Matchbox</button>
-    <button data-target="page-entscheidungen"><span class="icon">🎛️</span>Entscheidungen</button>
-    <button data-target="page-nights"><span class="icon">🌙</span>Nights</button>
+    <button data-target="page-entscheidungen"><span class="icon">🌙</span>Matchingnight</button>
+    <button data-target="page-nights"><span class="icon">🕒</span>Nights</button>
     <button data-target="page-ergebnisse"><span class="icon">📊</span>Ergebnisse</button>
   </nav>
 
-  <script>
-    const nav = document.getElementById('nav');
-    const pages = document.querySelectorAll('.page');
-    nav.addEventListener('click', (e)=>{ 
-      const btn = e.target.closest('button'); if(!btn) return;
-      document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      const id = btn.getAttribute('data-target');
-      pages.forEach(p=> p.classList.toggle('active', p.id===id));
-      window.scrollTo({top:0, behavior:'smooth'});
-    });
-  </script>
+  <div id="overlay">
+    <div class="overlay-box">
+      <img class="overlay-logo" src="/Ayto/icons/ayto-logo.jpg" alt="AYTO Logo">
+      <h3 class="overlay-title">Berechnung läuft...</h3>
+      <div class="progress"><div class="bar"></div></div>
+    </div>
+  </div>
 
-  <script>
-
-  </script>
-
+  <script src="/Ayto/app.js"></script>
   <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {

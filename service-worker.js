@@ -1,10 +1,11 @@
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = `ayto-solver-${CACHE_VERSION}`;
 const APP_SHELL = [
   '/Ayto/',
   '/Ayto/index.html',
   '/Ayto/style.css',
+  '/Ayto/app.js',
   '/Ayto/manifest.json',
   '/Ayto/icons/icon-192.png',
   '/Ayto/icons/icon-512.png',

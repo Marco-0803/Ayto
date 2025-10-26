@@ -37,7 +37,7 @@ button{background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,25
 button.primary{background:linear-gradient(180deg, var(--blue), #1f7ed1); border:0; color:#fff}
 button.ghost{background:transparent; border:1px dashed var(--border); color:var(--muted)}
 button.danger{background:linear-gradient(180deg, #f06262, #c23838); border:0; color:white}
-.pill{font-size:12px; padding:6px 8px; border:1px solid var(--border); border-radius:999px; color:var(--muted)}
+.pill{font-size:12px; padding:6px 8px; border:1px solid var(--border); border-radius:999px; color:#cbd3f1}
 
 .table-wrap{overflow:auto; max-height:560px; border-radius:12px; border:1px solid var(--border)}
 table{border-collapse: collapse; width:100%}
@@ -69,3 +69,19 @@ th{position:sticky; top:0; background:var(--panel)}
 .tag.good{background:rgba(33,197,93,.12); color:#a6f3c8; border:1px solid rgba(33,197,93,.25)}
 .tag.bad{background:rgba(239,68,68,.12); color:#ffb4b4; border:1px solid rgba(239,68,68,.25)}
 .tag.neutral{background:rgba(110,168,254,.12); color:#cfe0ff; border:1px solid rgba(110,168,254,.25)}
+
+/* Overlay */
+#overlay { position: fixed; inset: 0; z-index: 1000; display: none; align-items: center; justify-content: center;
+  background: rgba(15,18,32,0.85); opacity: 0; transition: opacity .25s ease; }
+#overlay.show { display:flex; opacity:1; }
+.overlay-box{ width: min(520px, 86vw); background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.14); border-radius:18px; padding:22px; text-align:center; box-shadow: 0 14px 34px rgba(0,0,0,.35); }
+.overlay-logo{ width:90px; height:90px; border-radius:14px; margin:0 auto 12px auto; display:block;
+  animation: spin 2s linear infinite, pulse 1.6s ease-in-out infinite; filter: drop-shadow(0 6px 18px rgba(33,150,243,.45)); }
+@keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+.overlay-title{color:#fff; margin:0 0 10px 0; font-size:18px}
+.progress{ height:10px; border-radius:999px; background: rgba(255,255,255,.12); overflow:hidden; border:1px solid rgba(255,255,255,.2); }
+.progress > .bar{ height:100%; width:0%; background: linear-gradient(90deg, var(--blue), var(--pink));
+  animation: loadbar 2s linear forwards; box-shadow: 0 0 18px rgba(233,30,99,.35); }
+@keyframes loadbar { from{width:0%} to{width:100%} }
