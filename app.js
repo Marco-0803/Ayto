@@ -503,7 +503,7 @@ window.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", renderTimeline);
   });
 });
-// === 🧮 Vollständiger AYTO-Solver (mit Perfect-Match-Fix + Fortschrittsanzeige) ===
+// === 🧮 Vollständiger AYTO-Solver (optimiert + Fortschrittsanzeige + Perfect-Match-Fix) ===
 window.addEventListener("DOMContentLoaded", () => {
   const solveBtn = document.getElementById("solveBtn");
   const summaryBox = document.getElementById("summary");
@@ -512,12 +512,40 @@ window.addEventListener("DOMContentLoaded", () => {
 
   if (!solveBtn) return;
 
-  // ---------- Helper ----------
+  // --- Overlay-Funktionen ---
+  function showOverlay() {
+    const ov = document.getElementById("overlay");
+    if (ov) ov.classList.add("show");
+    updateOverlay(0);
+  }
+
+  function hideOverlay() {
+    const ov = document.getElementById("overlay");
+    if (!ov) return;
+    const title = ov.querySelector(".overlay-title");
+    const bar = ov.querySelector(".bar");
+    if (title && bar) {
+      title.textContent = "Fertig! ✅";
+      bar.style.width = "100%";
+      setTimeout(() => ov.classList.remove("show"), 800);
+    } else {
+      ov.classList.remove("show");
+    }
+  }
+
+  function updateOverlay(pct) {
+    const title = document.querySelector(".overlay-title");
+    const bar = document.querySelector(".bar");
+    if (title) title.textContent = `Berechnung läuft... (${pct.toFixed(0)}%)`;
+    if (bar) bar.style.width = `${pct}%`;
+  }
+
+  // --- Helper ---
   const getTeilnehmer = () => JSON.parse(localStorage.getItem("aytoTeilnehmer") || '{"A":[],"B":[]}');
   const getMatchbox = () => JSON.parse(localStorage.getItem("aytoMatchbox") || "[]");
   const getNights = () => JSON.parse(localStorage.getItem("aytoMatchingNights") || "[]");
 
-  // ---------- Matrix-Screenshot ----------
+  // --- Screenshot-Export ---
   async function exportMatrix() {
     const el = document.querySelector(".ayto-table-container");
     if (!el) return alert("Keine Matrix gefunden!");
@@ -528,7 +556,7 @@ window.addEventListener("DOMContentLoaded", () => {
     a.click();
   }
 
-  // ---------- Hauptfunktion ----------
+  // --- Hauptfunktion ---
   async function berechne() {
     const { A, B } = getTeilnehmer();
     const matchbox = getMatchbox();
@@ -539,8 +567,18 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    // Frühabbruch bei zu wenigen Eingaben
+    if (matchbox.length === 0 && nights.length === 0) {
+      summaryBox.innerHTML = `
+        <div class="warning" style="margin-top:10px">
+          ⚠ Bitte gib zuerst mindestens eine Matchbox-Entscheidung oder eine Matching Night ein.<br>
+          Ohne Einschränkungen wäre die Berechnung zu groß (über ${A.length}! Kombinationen).
+        </div>
+      `;
+      return;
+    }
+
     showOverlay();
-    updateOverlay(0);
     summaryBox.innerHTML = "<h3>Berechnung läuft...</h3>";
     logsBox.innerHTML = "";
     matrixBox.innerHTML = "";
@@ -554,7 +592,7 @@ window.addEventListener("DOMContentLoaded", () => {
     if (A.length !== B.length)
       logsBox.innerHTML += `<div class="warning">⚠ Ungleichgewicht: ${A.length}×${B.length}</div>`;
 
-    // ---------- Gültigkeitsprüfung ----------
+    // --- Gültigkeitsprüfung ---
     function isValid(assign) {
       for (const nm of noMatches)
         if (assign.some(p => `${p.A}-${p.B}` === nm)) return false;
@@ -567,20 +605,20 @@ window.addEventListener("DOMContentLoaded", () => {
       return true;
     }
 
-    // ---------- Backtracking-Solver ----------
+    // --- Backtracking-Solver (DFS) ---
     const validAssignments = [];
     let tested = 0;
-    let lastUpdate = 0;
+    let lastPct = 0;
 
     function dfs(i, usedB, current) {
       if (i === A.length) {
         if (isValid(current)) validAssignments.push([...current]);
         tested++;
-        if (tested % 500 === 0) {
-          const pct = Math.min(99, (tested / (tested + 1000)) * 100);
-          if (pct - lastUpdate >= 1) {
+        if (tested % 1000 === 0) {
+          const pct = Math.min(99, (tested / (tested + 10000)) * 100);
+          if (pct - lastPct >= 1) {
             updateOverlay(pct);
-            lastUpdate = pct;
+            lastPct = pct;
           }
         }
         return;
@@ -606,20 +644,19 @@ window.addEventListener("DOMContentLoaded", () => {
     dfs(0, new Set(), []);
     updateOverlay(100);
 
-    // ---------- Perfect-Matches Fix ----------
+    // --- Perfect-Match-Fix ---
     const counts = {};
     A.forEach(a => B.forEach(b => counts[`${a}-${b}`] = 0));
     validAssignments.forEach(assign =>
       assign.forEach(p => counts[`${p.A}-${p.B}`]++)
     );
 
-    // Perfect-Matches auf 100 % erzwingen
     for (const pm of perfectMatches) {
       A.forEach(a => counts[`${a}-${pm.B}`] = a === pm.A ? validAssignments.length : 0);
       B.forEach(b => counts[`${pm.A}-${b}`] = b === pm.B ? validAssignments.length : 0);
     }
 
-    // ---------- Zusammenfassung ----------
+    // --- Zusammenfassung ---
     summaryBox.innerHTML = `
       <h3>Ergebnis</h3>
       <div>${A.length}×${B.length} Teilnehmer</div>
@@ -628,7 +665,7 @@ window.addEventListener("DOMContentLoaded", () => {
     `;
     document.getElementById("exportMatrix").onclick = exportMatrix;
 
-    // ---------- Matrix erzeugen ----------
+    // --- Matrix erzeugen ---
     let table = `
     <style>
       .ayto-table-container {
