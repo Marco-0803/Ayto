@@ -402,7 +402,7 @@ window.addEventListener("DOMContentLoaded",()=>{
   document.querySelectorAll('nav button[data-target="page-nights"]').forEach(b=>b.addEventListener("click",render));
 });
 
-/* === 📊 Solver mit stabiler Eingabeprüfung & korrekten Prozentwerten === */
+/* === 📊 Solver mit 5s Timeout & korrekten Prozentwerten === */
 window.addEventListener("DOMContentLoaded", () => {
   const solveBtn = document.getElementById("solveBtn"),
         summary = document.getElementById("summary"),
@@ -435,7 +435,6 @@ window.addEventListener("DOMContentLoaded", () => {
     const M = getM();
     const Nraw = getN();
 
-    // 🧠 Sicherheitsprüfungen
     if (A.length < 2 || B.length < 2) {
       hideOverlay();
       return alert("Bitte mindestens 2 Teilnehmer pro Gruppe eingeben!");
@@ -457,22 +456,17 @@ window.addEventListener("DOMContentLoaded", () => {
     let total = 0, tested = 0;
 
     const maxIter = Math.pow(Math.min(A.length, B.length), 2) * 2;
-    const updateProgress = (c, m) => {
-      if (!progressBar) return;
-      const pct = Math.min(100, (c / m) * 100);
-      progressBar.style.width = pct.toFixed(1) + "%";
-    };
-
     const start = performance.now();
+    const timeoutMs = 5000;
+    let timedOut = false;
+
+    const timer = setTimeout(() => { timedOut = true; }, timeoutMs);
 
     function isValid(assign) {
-      // Keine "No Matches"
       for (const nm of NM)
         if (assign.some(p => `${p.A}-${p.B}` === nm)) return false;
-      // Perfect Matches müssen exakt stimmen
       for (const pm of PM)
         if (!assign.some(p => p.A === pm.A && p.B === pm.B)) return false;
-      // Nights prüfen
       for (const n of N) {
         const correct = n.pairs.filter(p =>
           assign.some(a => a.A === p.A && a.B === p.B)
@@ -483,8 +477,8 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     function dfs(i, used, cur) {
+      if (timedOut) return;
       tested++;
-      if (tested % 50 === 0) updateProgress(tested, maxIter);
       if (i === A.length) {
         if (isValid(cur)) {
           total++;
@@ -502,21 +496,27 @@ window.addEventListener("DOMContentLoaded", () => {
         dfs(i + 1, used, cur);
         cur.pop(); used.delete(j);
       }
-      // Wenn mehr A als B → einer bleibt ohne Partnerin
       if (A.length > B.length) dfs(i + 1, used, cur);
     }
 
     try {
       dfs(0, new Set(), []);
-    } catch (err) {
-      hideOverlay();
-      return alert("Fehler in der Berechnung: " + err.message);
+    } finally {
+      clearTimeout(timer);
     }
 
-    updateProgress(1, 1);
-    const dur = ((performance.now() - start) / 1000).toFixed(2);
+    hideOverlay();
 
-    // 🧮 Ergebnis anzeigen
+    if (timedOut) {
+      summary.innerHTML = `
+        <div class="warning">
+          ⏱️ Berechnung wurde nach 5 Sekunden abgebrochen.<br>
+          Leider noch zu wenig Daten – bitte mehr Matching Nights oder Matchbox-Entscheidungen hinzufügen.
+        </div>`;
+      return;
+    }
+
+    const dur = ((performance.now() - start) / 1000).toFixed(2);
     summary.innerHTML = `
       <h3>Ergebnis</h3>
       <div>${A.length}×${B.length} Teilnehmer</div>
@@ -527,17 +527,14 @@ window.addEventListener("DOMContentLoaded", () => {
 
     if (!total) {
       matrix.innerHTML = "<h3>Keine gültige Kombination gefunden!</h3>";
-      hideOverlay();
       return;
     }
 
-    // Matrix-Tabelle erzeugen
     let html = `<div class="ayto-table-container"><table class="ayto-table"><tr><th>A\\B</th>${B.map(b => `<th>${b}</th>`).join("")}</tr>`;
     A.forEach(a => {
       html += `<tr><td class="a-name">${a}</td>`;
       B.forEach(b => {
         let pct = (counts[`${a}-${b}`] / total) * 100;
-        // Korrektur: Perfect Matches = 100%, No Matches = 0%
         if (PM.some(pm => pm.A === a && pm.B === b)) pct = 100;
         if (NM.has(`${a}-${b}`)) pct = 0;
         const hue = pct === 0 ? 0 : pct === 100 ? 120 : pct * 1.2;
@@ -548,8 +545,6 @@ window.addEventListener("DOMContentLoaded", () => {
     });
     html += "</table></div>";
     matrix.innerHTML = html;
-
-    hideOverlay();
   }
 
   solveBtn.onclick = berechne;
