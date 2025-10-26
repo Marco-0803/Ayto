@@ -426,3 +426,80 @@ window.addEventListener("DOMContentLoaded", () => {
   // Initial laden
   renderNights();
 });
+// === 🕒 Timeline-Seite ("Nights") ===
+window.addEventListener("DOMContentLoaded", () => {
+  const box = document.getElementById("timelineBox");
+  if (!box) return;
+
+  const KEY_MATCHBOX = "aytoMatchbox";
+  const KEY_NIGHTS = "aytoMatchingNights";
+
+  function getMatchbox() {
+    try { return JSON.parse(localStorage.getItem(KEY_MATCHBOX)) || []; }
+    catch { return []; }
+  }
+  function getNights() {
+    try { return JSON.parse(localStorage.getItem(KEY_NIGHTS)) || []; }
+    catch { return []; }
+  }
+
+  function renderTimeline() {
+    const matchbox = getMatchbox();
+    const nights = getNights();
+    box.innerHTML = "";
+
+    if (matchbox.length === 0 && nights.length === 0) {
+      box.innerHTML = "<div class='small muted'>Noch keine Ereignisse vorhanden</div>";
+      return;
+    }
+
+    // --- Matchbox-Einträge zuerst ---
+    if (matchbox.length > 0) {
+      const mbHeader = document.createElement("h3");
+      mbHeader.textContent = "💞 Matchbox-Entscheidungen";
+      box.appendChild(mbHeader);
+
+      matchbox.forEach((m, i) => {
+        const div = document.createElement("div");
+        div.className = "card stack";
+        const emoji = m.type === "PM" ? "✅" : m.type === "NM" ? "❌" : "🟦";
+        const txt = m.type === "PM" ? "Perfect Match"
+                  : m.type === "NM" ? "No Match" : "Sold";
+        div.innerHTML = `<strong>Matchbox ${i + 1}</strong><div>${emoji} ${m.A} × ${m.B} — ${txt}</div>`;
+        box.appendChild(div);
+      });
+    }
+
+    // --- Dann Matching Nights ---
+    if (nights.length > 0) {
+      const nightHeader = document.createElement("h3");
+      nightHeader.textContent = "🌙 Matching Nights";
+      box.appendChild(nightHeader);
+
+      nights.forEach((n, i) => {
+        const div = document.createElement("div");
+        div.className = "card stack";
+        div.style.padding = "10px";
+        div.innerHTML = `<strong>Night ${i + 1}</strong> – ${n.lights} Lichter`;
+
+        const table = document.createElement("table");
+        table.style.width = "100%";
+        table.style.fontSize = "13px";
+        table.innerHTML = n.pairs
+          .map(p => `<tr><td>${p.A}</td><td>×</td><td>${p.B}</td></tr>`)
+          .join("");
+        div.appendChild(table);
+
+        box.appendChild(div);
+      });
+    }
+  }
+
+  // Seite beim Laden aufbauen
+  renderTimeline();
+
+  // Optional: neu rendern, wenn man zur Seite wechselt
+  document.querySelectorAll('nav button[data-target="page-nights"]').forEach(btn => {
+    btn.addEventListener("click", renderTimeline);
+  });
+});
