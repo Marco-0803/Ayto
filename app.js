@@ -66,6 +66,7 @@ window.addEventListener("DOMContentLoaded", () => {
         "Joanna",
         "Nelly",
         "Sandra"
+        "Viki"
       ];
 
       localStorage.setItem("aytoTeilnehmer", JSON.stringify({ A, B }));
