@@ -503,7 +503,7 @@ window.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", renderTimeline);
   });
 });
-// === 🧮 AYTO Smart-Solver (schnell & exakt) ===
+// === 🧮 Vollständiger AYTO-Solver (mit Perfect-Match-Fix + Fortschrittsanzeige) ===
 window.addEventListener("DOMContentLoaded", () => {
   const solveBtn = document.getElementById("solveBtn");
   const summaryBox = document.getElementById("summary");
@@ -512,161 +512,206 @@ window.addEventListener("DOMContentLoaded", () => {
 
   if (!solveBtn) return;
 
-  function getTeilnehmer() {
-    try { return JSON.parse(localStorage.getItem("aytoTeilnehmer")) || { A: [], B: [] }; }
-    catch { return { A: [], B: [] }; }
-  }
-  function getMatchbox() {
-    try { return JSON.parse(localStorage.getItem("aytoMatchbox")) || []; }
-    catch { return []; }
-  }
-  function getNights() {
-    try { return JSON.parse(localStorage.getItem("aytoMatchingNights")) || []; }
-    catch { return []; }
-  }
+  // ---------- Helper ----------
+  const getTeilnehmer = () => JSON.parse(localStorage.getItem("aytoTeilnehmer") || '{"A":[],"B":[]}');
+  const getMatchbox = () => JSON.parse(localStorage.getItem("aytoMatchbox") || "[]");
+  const getNights = () => JSON.parse(localStorage.getItem("aytoMatchingNights") || "[]");
 
+  // ---------- Matrix-Screenshot ----------
   async function exportMatrix() {
     const el = document.querySelector(".ayto-table-container");
     if (!el) return alert("Keine Matrix gefunden!");
     const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#1a1b2b" });
-    const link = document.createElement("a");
-    link.download = "AYTO-Matrix.png";
-    link.href = canvas.toDataURL("image/png");
-    link.click();
+    const a = document.createElement("a");
+    a.download = "AYTO-Matrix.png";
+    a.href = canvas.toDataURL("image/png");
+    a.click();
   }
 
-  // ----------------------------------------------------------------
-  // Hauptberechnung mit Pruning
-  // ----------------------------------------------------------------
-  function berechne() {
+  // ---------- Hauptfunktion ----------
+  async function berechne() {
     const { A, B } = getTeilnehmer();
     const matchbox = getMatchbox();
     const nights = getNights();
 
-    if (!A.length || !B.length) {
+    if (A.length === 0 || B.length === 0) {
       alert("Bitte zuerst Teilnehmer hinzufügen!");
       return;
     }
 
+    showOverlay();
+    updateOverlay(0);
     summaryBox.innerHTML = "<h3>Berechnung läuft...</h3>";
     logsBox.innerHTML = "";
     matrixBox.innerHTML = "";
     matrixBox.style.display = "block";
 
-    const noMatches = new Set(matchbox.filter(m => m.type === "NM").map(m => `${m.A}-${m.B}`));
     const perfectMatches = matchbox.filter(m => m.type === "PM");
+    const noMatches = new Set(matchbox.filter(m => m.type === "NM").map(m => `${m.A}-${m.B}`));
 
     logsBox.innerHTML += `<div>${A.length}×${B.length} Teilnehmer</div>`;
     logsBox.innerHTML += `<div>${perfectMatches.length} Perfect Matches, ${noMatches.size} No Matches, ${nights.length} Nights</div>`;
+    if (A.length !== B.length)
+      logsBox.innerHTML += `<div class="warning">⚠ Ungleichgewicht: ${A.length}×${B.length}</div>`;
 
-    const diff = Math.abs(A.length - B.length);
-    if (diff > 0) logsBox.innerHTML += `<div class="warning">⚠ Ungleichgewicht: ${A.length}×${B.length}</div>`;
-
-    // --- Speicher für gültige Kombinationen ---
-    const validAssignments = [];
-    let tested = 0;
-
-    // --- vorberechnete Night-Checker ---
-    function nightValid(partialAssign) {
+    // ---------- Gültigkeitsprüfung ----------
+    function isValid(assign) {
+      for (const nm of noMatches)
+        if (assign.some(p => `${p.A}-${p.B}` === nm)) return false;
+      for (const pm of perfectMatches)
+        if (assign.some(p => p.A === pm.A && p.B !== pm.B)) return false;
       for (const n of nights) {
-        const correct = n.pairs.filter(p => partialAssign.some(a => a.A === p.A && a.B === p.B)).length;
-        if (correct > n.lights) return false; // zu viele Treffer → unzulässig
+        const correct = n.pairs.filter(p => assign.some(a => a.A === p.A && a.B === p.B)).length;
+        if (correct !== n.lights) return false;
       }
       return true;
     }
 
-    // --- Rekursive Tiefensuche mit Pruning ---
-    function dfs(i, usedB, assign) {
-      if (i === A.length || usedB.size === B.length) {
+    // ---------- Backtracking-Solver ----------
+    const validAssignments = [];
+    let tested = 0;
+    let lastUpdate = 0;
+
+    function dfs(i, usedB, current) {
+      if (i === A.length) {
+        if (isValid(current)) validAssignments.push([...current]);
         tested++;
-        // Prüfen, ob Nights exakt erfüllt sind
-        for (const n of nights) {
-          const correct = n.pairs.filter(p => assign.some(a => a.A === p.A && a.B === p.B)).length;
-          if (correct !== n.lights) return;
+        if (tested % 500 === 0) {
+          const pct = Math.min(99, (tested / (tested + 1000)) * 100);
+          if (pct - lastUpdate >= 1) {
+            updateOverlay(pct);
+            lastUpdate = pct;
+          }
         }
-        validAssignments.push(assign.slice());
         return;
       }
 
-      const a = A[i];
-
-      // Wenn mehr Männer als Frauen → evtl. diesen überspringen
-      const maySkip = A.length > B.length && (A.length - i > B.length - usedB.size);
-      if (maySkip) dfs(i + 1, new Set(usedB), assign);
-
-      for (const b of B) {
-        if (usedB.has(b)) continue;
-        const pairKey = `${a}-${b}`;
-
-        // sofort ausschließen, wenn No-Match oder falscher Perfect-Match
-        if (noMatches.has(pairKey)) continue;
+      for (let j = 0; j < B.length; j++) {
+        if (usedB.has(j)) continue;
+        const a = A[i], b = B[j];
+        if (noMatches.has(`${a}-${b}`)) continue;
         const pm = perfectMatches.find(p => p.A === a);
         if (pm && pm.B !== b) continue;
-
-        const newAssign = [...assign, { A: a, B: b }];
-        if (!nightValid(newAssign)) continue; // früh abbrechen
-
-        const newUsed = new Set(usedB);
-        newUsed.add(b);
-        dfs(i + 1, newUsed, newAssign);
+        usedB.add(j);
+        current.push({ A: a, B: b });
+        dfs(i + 1, usedB, current);
+        current.pop();
+        usedB.delete(j);
       }
+
+      // Ungleichgewicht: eine A-Person kann aussetzen
+      if (A.length > B.length) dfs(i + 1, usedB, current);
     }
 
     dfs(0, new Set(), []);
+    updateOverlay(100);
 
-    // --- Ergebnisse ---
+    // ---------- Perfect-Matches Fix ----------
+    const counts = {};
+    A.forEach(a => B.forEach(b => counts[`${a}-${b}`] = 0));
+    validAssignments.forEach(assign =>
+      assign.forEach(p => counts[`${p.A}-${p.B}`]++)
+    );
+
+    // Perfect-Matches auf 100 % erzwingen
+    for (const pm of perfectMatches) {
+      A.forEach(a => counts[`${a}-${pm.B}`] = a === pm.A ? validAssignments.length : 0);
+      B.forEach(b => counts[`${pm.A}-${b}`] = b === pm.B ? validAssignments.length : 0);
+    }
+
+    // ---------- Zusammenfassung ----------
     summaryBox.innerHTML = `
       <h3>Ergebnis</h3>
-      <div>${validAssignments.length} gültige Kombination(en) aus ${tested} geprüft</div>
+      <div>${A.length}×${B.length} Teilnehmer</div>
+      <div>${validAssignments.length} gültige Kombination(en)</div>
       <button id="exportMatrix" class="primary" style="margin-top:8px">Matrix speichern (PNG)</button>
     `;
     document.getElementById("exportMatrix").onclick = exportMatrix;
 
-    if (!validAssignments.length) {
-      matrixBox.innerHTML = "<h3>Keine gültige Kombination!</h3>";
-      return;
-    }
-
-// --- Häufigkeiten zählen (mit Perfect-Match-Fix) ---
-const counts = {};
-A.forEach(a => B.forEach(b => counts[`${a}-${b}`] = 0));
-
-for (const assign of validAssignments) {
-  for (const p of assign) counts[`${p.A}-${p.B}`]++;
-}
-
-// --- Perfect-Matches erzwingen ---
-for (const pm of perfectMatches) {
-  // Alles außer der echten Kombination auf 0 setzen
-  A.forEach(a => counts[`${a}-${pm.B}`] = a === pm.A ? counts[`${a}-${pm.B}`] : 0);
-  B.forEach(b => counts[`${pm.A}-${b}`] = b === pm.B ? counts[`${pm.A}-${b}`] : 0);
-}
-
-    // --- Matrix generieren ---
+    // ---------- Matrix erzeugen ----------
     let table = `
-      <style>
-        .ayto-table-container {overflow-x:auto;margin-top:10px;border-radius:10px;box-shadow:0 0 12px rgba(0,0,0,0.3);}
-        .ayto-table {width:100%;border-collapse:collapse;background:rgba(25,27,45,0.9);font-size:13px;}
-        .ayto-table th,.ayto-table td {padding:6px 8px;text-align:center;border:1px solid rgba(255,255,255,0.05);}
-        .ayto-table th {background:rgba(35,38,60,0.95);color:#eee;font-weight:600;position:sticky;top:0;}
-        .ayto-table .a-name {background:rgba(35,38,60,0.9);text-align:left;font-weight:600;color:#ddd;position:sticky;left:0;}
-      </style>
-      <div class="ayto-table-container">
-      <table class="ayto-table">
-      <tr><th>A \\ B</th>${B.map(b=>`<th>${b}</th>`).join("")}</tr>`;
-    for (const a of A) {
+    <style>
+      .ayto-table-container {
+        overflow-x:auto;
+        margin-top:10px;
+        border-radius:10px;
+        box-shadow:0 0 12px rgba(0,0,0,0.3);
+      }
+      .ayto-table {
+        width:100%;
+        border-collapse:collapse;
+        background:rgba(25,27,45,0.9);
+        font-size:13px;
+      }
+      .ayto-table th, .ayto-table td {
+        padding:6px 8px;
+        text-align:center;
+        border:1px solid rgba(255,255,255,0.05);
+        white-space:nowrap;
+      }
+      .ayto-table th {
+        background:rgba(35,38,60,0.95);
+        color:#eee;
+        font-weight:600;
+        position:sticky;
+        top:0;
+        z-index:2;
+      }
+      .ayto-table .a-name {
+        background:rgba(35,38,60,0.9);
+        text-align:left;
+        font-weight:600;
+        color:#ddd;
+        position:sticky;
+        left:0;
+        z-index:3;
+      }
+      .ayto-tooltip {
+        visibility:hidden;
+        position:absolute;
+        background:rgba(0,0,0,0.85);
+        color:#fff;
+        text-align:center;
+        border-radius:6px;
+        padding:3px 6px;
+        font-size:12px;
+        bottom:120%;
+        left:50%;
+        transform:translateX(-50%);
+        opacity:0;
+        transition:opacity 0.3s;
+        pointer-events:none;
+        white-space:nowrap;
+      }
+      .ayto-table td:hover .ayto-tooltip {
+        visibility:visible;
+        opacity:1;
+      }
+    </style>
+    <div class="ayto-table-container">
+    <table class="ayto-table">
+      <tr><th>A \\ B</th>${B.map(b => `<th>${b}</th>`).join("")}</tr>
+    `;
+
+    A.forEach(a => {
       table += `<tr><td class="a-name">${a}</td>`;
-      for (const b of B) {
-        const c = counts[`${a}-${b}`];
-        const pct = (c / validAssignments.length) * 100;
+      B.forEach(b => {
+        let c = counts[`${a}-${b}`];
+        let pct = (c / validAssignments.length) * 100;
+        if (perfectMatches.some(pm => pm.A === a && pm.B === b)) pct = 100;
+        if (noMatches.has(`${a}-${b}`)) pct = 0;
         const hue = pct === 0 ? 0 : pct === 100 ? 120 : pct * 1.2;
         const bg = `hsl(${hue},75%,${Math.min(25 + pct * 0.3,55)}%)`;
-        table += `<td style="background:${bg};color:#fff">${pct.toFixed(0)}%</td>`;
-      }
+        const tooltip = `${pct.toFixed(2)}% (${c}/${validAssignments.length})`;
+        table += `<td style="background:${bg};color:#fff;position:relative">${pct.toFixed(0)}%<div class="ayto-tooltip">${tooltip}</div></td>`;
+      });
       table += "</tr>";
-    }
+    });
+
     table += "</table></div>";
     matrixBox.innerHTML = table;
+
+    hideOverlay();
   }
 
   solveBtn.addEventListener("click", berechne);
