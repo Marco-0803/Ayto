@@ -503,3 +503,113 @@ window.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", renderTimeline);
   });
 });
+// === 🧮 AYTO Solver mit stylischer Matrix ===
+window.addEventListener("DOMContentLoaded", () => {
+  const solveBtn = document.getElementById("solveBtn");
+  const summaryBox = document.getElementById("summary");
+  const logsBox = document.getElementById("logs");
+  const matrixBox = document.getElementById("matrix");
+
+  if (!solveBtn) return;
+
+  function factorial(n) {
+    return n <= 1 ? 1 : n * factorial(n - 1);
+  }
+
+  function berechne() {
+    const { A, B } = JSON.parse(localStorage.getItem("aytoTeilnehmer")) || { A: [], B: [] };
+    const matchbox = JSON.parse(localStorage.getItem("aytoMatchbox")) || [];
+    const nights = JSON.parse(localStorage.getItem("aytoMatchingNights")) || [];
+
+    if (!A.length || !B.length) {
+      alert("Bitte zuerst Teilnehmer hinzufügen!");
+      return;
+    }
+
+    summaryBox.innerHTML = "<h3>Berechnung läuft...</h3>";
+    logsBox.innerHTML = "";
+    matrixBox.innerHTML = "";
+
+    const noMatches = new Set(matchbox.filter(m => m.type === "NM").map(m => `${m.A}-${m.B}`));
+    const perfectMatches = matchbox.filter(m => m.type === "PM");
+
+    logsBox.innerHTML += `<div>${A.length}×${B.length} Teilnehmer</div>`;
+    logsBox.innerHTML += `<div>${perfectMatches.length} Perfect Matches, ${noMatches.size} No Matches, ${nights.length} Nights</div>`;
+
+    // --- Permutationsgenerator ---
+    function* permute(arr) {
+      if (arr.length <= 1) yield arr;
+      else for (let i = 0; i < arr.length; i++) {
+        const rest = arr.slice(0, i).concat(arr.slice(i + 1));
+        for (const p of permute(rest)) yield [arr[i], ...p];
+      }
+    }
+
+    // --- Check: erfüllt eine Kombination alle Bedingungen? ---
+    function isValid(assign) {
+      for (const nm of noMatches)
+        if (assign.some(p => `${p.A}-${p.B}` === nm)) return false;
+      for (const pm of perfectMatches)
+        if (assign.some(p => p.A === pm.A && p.B !== pm.B)) return false;
+      for (const n of nights) {
+        const correct = n.pairs.filter(p => assign.some(a => a.A === p.A && a.B === p.B)).length;
+        if (correct !== n.lights) return false;
+      }
+      return true;
+    }
+
+    // --- Alle Kombinationen prüfen ---
+    const valid = [];
+    let tested = 0;
+    for (const perm of permute(B)) {
+      tested++;
+      const assign = A.map((a, i) => ({ A: a, B: perm[i] }));
+      if (isValid(assign)) valid.push(assign);
+    }
+
+    logsBox.innerHTML += `<div>Geprüft: ${tested}</div>`;
+    logsBox.innerHTML += `<div>Gültige Kombinationen: ${valid.length}</div>`;
+
+    if (!valid.length) {
+      summaryBox.innerHTML = "<h3>Keine gültige Kombination!</h3>";
+      return;
+    }
+
+    // --- Wahrscheinlichkeiten zählen ---
+    const counts = {};
+    A.forEach(a => B.forEach(b => counts[`${a}-${b}`] = 0));
+    valid.forEach(v => v.forEach(p => counts[`${p.A}-${p.B}`]++));
+
+    // --- Stylische Matrix ---
+    let table = `
+    <style>
+      .ayto-table-container{overflow-x:auto;margin-top:10px;border-radius:10px;box-shadow:0 0 12px rgba(0,0,0,.3);}
+      .ayto-table{width:100%;min-width:600px;border-collapse:collapse;background:#191b2d;font-size:13px;}
+      .ayto-table th,.ayto-table td{padding:8px 10px;text-align:center;border:1px solid rgba(255,255,255,.05);}
+      .ayto-table th{background:#23263c;color:#eee;position:sticky;top:0;}
+      .ayto-table .a-name{background:#23263c;text-align:left;position:sticky;left:0;}
+      .ayto-tooltip{visibility:hidden;position:absolute;background:rgba(0,0,0,.85);color:#fff;border-radius:6px;padding:4px 8px;font-size:12px;bottom:120%;left:50%;transform:translateX(-50%);opacity:0;transition:opacity .3s;}
+      td:hover .ayto-tooltip{visibility:visible;opacity:1;}
+    </style>
+    <div class="ayto-table-container"><table class="ayto-table"><tr><th>A \\ B</th>${B.map(b=>`<th>${b}</th>`).join("")}</tr>`;
+
+    A.forEach(a => {
+      table += `<tr><td class="a-name">${a}</td>`;
+      B.forEach(b => {
+        const c = counts[`${a}-${b}`];
+        const pct = (c / valid.length) * 100;
+        const hue = pct === 0 ? 0 : pct === 100 ? 120 : pct * 1.2;
+        const bg = `hsl(${hue},75%,${Math.min(25 + pct * .3, 55)}%)`;
+        table += `<td style="background:${bg};color:white;position:relative">${pct.toFixed(0)}%
+          <div class="ayto-tooltip">${pct.toFixed(2)}% (${c}/${valid.length})</div></td>`;
+      });
+      table += "</tr>";
+    });
+    table += "</table></div>";
+
+    matrixBox.innerHTML = table;
+    summaryBox.innerHTML = `<h3>Ergebnis</h3><div>Gültige Kombinationen: ${valid.length}</div><div>Geprüft: ${tested}</div>`;
+  }
+
+  solveBtn.addEventListener("click", berechne);
+});
