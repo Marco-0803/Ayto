@@ -1,6 +1,6 @@
 :root{
   --bg:#0F1220; --panel:#171a2b; --panel2:#1f2340; --text:#e6e9ff; --muted:#a8b0d6;
-  --blue:#2196F3; --pink:#E91E63; --border:#2a3055; --shadow:rgba(0,0,0,.22);
+  --blue:#3b8bff; --pink:#ff3c8a; --border:#2a3055; --shadow:rgba(0,0,0,.22);
 }
 
 *{box-sizing:border-box}
@@ -20,7 +20,7 @@ header{
   padding:16px 18px 12px 18px; text-align:center; color:#fff;
   box-shadow:0 10px 22px var(--shadow);
 }
-header .logo{width:120px;height:auto;display:block;margin:0 auto 8px auto;filter:drop-shadow(0 6px 12px rgba(0,0,0,.25));border-radius:8px}
+header .logo{width:92px;height:auto;display:block;margin:0 auto 8px auto;filter:drop-shadow(0 6px 12px rgba(0,0,0,.25));border-radius:12px}
 h1{margin:0;font-size:clamp(18px,2.4vw,26px)}
 .small{font-size:12px;color:#f0f4ff;opacity:.9}
 
@@ -66,9 +66,9 @@ th{position:sticky;top:0;background:var(--panel)}
 .tag.neutral{background:rgba(110,168,254,.12);color:#cfe0ff;border:1px solid rgba(110,168,254,.25)}
 
 .warning{padding:8px;border-radius:10px;border:1px solid #f59e0b;color:#ffd28a;background:rgba(245,158,11,.08)}
-
 .timeline{max-height:520px;overflow:auto}
 
+/* Overlay */
 #overlay{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;background:rgba(15,18,32,.85);opacity:0;transition:opacity .25s ease}
 #overlay.show{display:flex;opacity:1}
 .overlay-box{width:min(520px,86vw);background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:22px;text-align:center;box-shadow:0 14px 34px rgba(0,0,0,.35)}
