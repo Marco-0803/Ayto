@@ -613,3 +613,54 @@ window.addEventListener("DOMContentLoaded", () => {
 
   solveBtn.addEventListener("click", berechne);
 });
+// === 🧩 Erweiterung: Matrix automatisch anzeigen + Screenshot-Export ===
+window.addEventListener("DOMContentLoaded", () => {
+  const matrixBox = document.getElementById("matrix");
+  const summaryBox = document.getElementById("summary");
+
+  // Prüfen, ob html2canvas schon eingebunden ist (für Screenshot)
+  if (typeof html2canvas === "undefined") {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
+    document.head.appendChild(script);
+  }
+
+  // Funktion, um Screenshot zu erstellen
+  async function exportMatrixAsImage() {
+    if (!matrixBox) return alert("Keine Matrix gefunden!");
+    try {
+      const canvas = await html2canvas(matrixBox, {
+        backgroundColor: "#191b2d",
+        scale: 2
+      });
+      const link = document.createElement("a");
+      link.download = `AYTO-Matrix-${new Date().toISOString().split("T")[0]}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } catch (e) {
+      alert("Screenshot konnte nicht erstellt werden: " + e.message);
+    }
+  }
+
+  // Beobachter: Wenn Matrix neu berechnet wird, automatisch anzeigen + Button hinzufügen
+  const observer = new MutationObserver(() => {
+    if (matrixBox && matrixBox.innerHTML.trim() !== "") {
+      // Prüfe, ob Button schon existiert
+      if (!document.getElementById("saveMatrixBtn")) {
+        const saveBtn = document.createElement("button");
+        saveBtn.id = "saveMatrixBtn";
+        saveBtn.textContent = "Matrix speichern (PNG)";
+        saveBtn.className = "primary";
+        saveBtn.style.marginTop = "12px";
+        saveBtn.style.display = "block";
+        saveBtn.style.width = "100%";
+        saveBtn.onclick = exportMatrixAsImage;
+        summaryBox.insertAdjacentElement("afterend", saveBtn);
+      }
+    }
+  });
+
+  if (matrixBox) {
+    observer.observe(matrixBox, { childList: true, subtree: true });
+  }
+});
