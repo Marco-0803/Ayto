@@ -1,5 +1,5 @@
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v3.1';
 const CACHE_NAME = `ayto-solver-${CACHE_VERSION}`;
 const APP_SHELL = [
   '/Ayto/',
