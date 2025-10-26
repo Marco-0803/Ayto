@@ -36,6 +36,72 @@ window.addEventListener("DOMContentLoaded", () => {
   const addA = document.getElementById("addA");
   const addB = document.getElementById("addB");
   const warn = document.getElementById("warnBalance");
+    // --- Staffel 2025 vorbelegen ---
+  const prefillBtn = document.getElementById("prefill");
+  if (prefillBtn) {
+    prefillBtn.addEventListener("click", () => {
+      if (!confirm("Aktuelle Teilnehmer löschen und Staffel 2025 laden?")) return;
+
+      const A = [
+        "Calvin.O",
+        "Calvin.S",
+        "Jonny",
+        "Kevin",
+        "Leandro",
+        "Lennert",
+        "Nico",
+        "Oliver",
+        "Rob",
+        "Sidar",
+        "Xander"
+      ];
+
+      const B = [
+        "Antonia",
+        "Ariel",
+        "Beverly",
+        "Elly",
+        "Hati",
+        "Henna",
+        "Joanna",
+        "Nelly",
+        "Sandra"
+      ];
+
+      localStorage.setItem("aytoTeilnehmer", JSON.stringify({ A, B }));
+
+      // Listen visuell aktualisieren
+      listA.innerHTML = "";
+      listB.innerHTML = "";
+      A.forEach(n => {
+        const div = document.createElement("div");
+        div.className = "row";
+        div.innerHTML = `<input type="text" value="${n}" style="flex:1">
+                         <button class="danger small">✖</button>`;
+        div.querySelector("button").addEventListener("click", () => {
+          div.remove();
+          saveData();
+          checkBalance();
+        });
+        listA.appendChild(div);
+      });
+      B.forEach(n => {
+        const div = document.createElement("div");
+        div.className = "row";
+        div.innerHTML = `<input type="text" value="${n}" style="flex:1">
+                         <button class="danger small">✖</button>`;
+        div.querySelector("button").addEventListener("click", () => {
+          div.remove();
+          saveData();
+          checkBalance();
+        });
+        listB.appendChild(div);
+      });
+
+      saveData();
+      checkBalance();
+    });
+  }
   if(!listA || !listB || !addA || !addB) return;
 
   const STORAGE_KEY = "aytoTeilnehmer";
