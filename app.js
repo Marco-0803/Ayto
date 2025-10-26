@@ -503,3 +503,126 @@ window.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", renderTimeline);
   });
 });
+// === 🧮 Vollständiger AYTO-Solver ===
+window.addEventListener("DOMContentLoaded", () => {
+  const solveBtn = document.getElementById("solveBtn");
+  const summaryBox = document.getElementById("summary");
+  const logsBox = document.getElementById("logs");
+  const matrixBox = document.getElementById("matrix");
+
+  if (!solveBtn) return;
+
+  function getTeilnehmer() {
+    try { return JSON.parse(localStorage.getItem("aytoTeilnehmer")) || { A: [], B: [] }; }
+    catch { return { A: [], B: [] }; }
+  }
+  function getMatchbox() {
+    try { return JSON.parse(localStorage.getItem("aytoMatchbox")) || []; }
+    catch { return []; }
+  }
+  function getNights() {
+    try { return JSON.parse(localStorage.getItem("aytoMatchingNights")) || []; }
+    catch { return []; }
+  }
+
+  function berechne() {
+    const { A, B } = getTeilnehmer();
+    const matchbox = getMatchbox();
+    const nights = getNights();
+
+    if (A.length === 0 || B.length === 0) {
+      alert("Bitte zuerst Teilnehmer hinzufügen!");
+      return;
+    }
+
+    summaryBox.innerHTML = "<h3>Berechnung läuft...</h3>";
+    logsBox.innerHTML = "";
+    matrixBox.innerHTML = "";
+
+    const noMatches = new Set(matchbox.filter(m => m.type === "NM").map(m => `${m.A}-${m.B}`));
+    const perfectMatches = matchbox.filter(m => m.type === "PM");
+
+    logsBox.innerHTML += `<div>Teilnehmer: ${A.length} Männer × ${B.length} Frauen</div>`;
+    logsBox.innerHTML += `<div>${perfectMatches.length} Perfect Matches, ${noMatches.size} No Matches</div>`;
+    logsBox.innerHTML += `<div>${nights.length} Matching Nights werden geprüft...</div>`;
+
+    // Hilfsfunktion: Permutationen aller B-Zuweisungen
+    function* permute(arr) {
+      if (arr.length <= 1) yield arr;
+      else for (let i = 0; i < arr.length; i++) {
+        const rest = arr.slice(0, i).concat(arr.slice(i + 1));
+        for (const p of permute(rest)) yield [arr[i]].concat(p);
+      }
+    }
+
+    // Prüft, ob eine Zuordnung alle Bedingungen erfüllt
+    function isValidAssignment(assign) {
+      // assign = [{A,B}, …]
+      for (const nm of noMatches) if (assign.some(p => `${p.A}-${p.B}` === nm)) return false;
+      for (const pm of perfectMatches) if (assign.some(p => p.A === pm.A && p.B !== pm.B)) return false;
+
+      // Matching Nights prüfen
+      for (const n of nights) {
+        const correct = n.pairs.filter(p => assign.some(a => a.A === p.A && a.B === p.B)).length;
+        if (correct !== n.lights) return false;
+      }
+      return true;
+    }
+
+    // Alle möglichen Kombinationen prüfen
+    const validAssignments = [];
+    let tested = 0;
+    const total = factorial(B.length);
+
+    function factorial(n) { return n <= 1 ? 1 : n * factorial(n - 1); }
+
+    for (const perm of permute(B)) {
+      tested++;
+      const assign = A.map((a, i) => ({ A: a, B: perm[i] }));
+      if (isValidAssignment(assign)) validAssignments.push(assign);
+    }
+
+    logsBox.innerHTML += `<div>Geprüft: ${tested} Kombinationen</div>`;
+    logsBox.innerHTML += `<div>Gültige Kombinationen: ${validAssignments.length}</div>`;
+
+    if (validAssignments.length === 0) {
+      summaryBox.innerHTML = "<h3>Keine Kombination erfüllt alle Bedingungen!</h3>";
+      return;
+    }
+
+    // Häufigkeit jedes möglichen Paares zählen
+    const counts = {};
+    A.forEach(a => B.forEach(b => counts[`${a}-${b}`] = 0));
+
+    validAssignments.forEach(assign =>
+      assign.forEach(p => counts[`${p.A}-${p.B}`]++)
+    );
+
+    // Matrix ausgeben
+    let table = "<table style='width:100%;font-size:12px;border-collapse:collapse'>";
+    table += "<tr><th>A\\B</th>" + B.map(b => `<th>${b}</th>`).join("") + "</tr>";
+    A.forEach(a => {
+      table += `<tr><td><b>${a}</b></td>`;
+      B.forEach(b => {
+        const pct = (counts[`${a}-${b}`] / validAssignments.length) * 100;
+        const color =
+          pct === 0 ? "#300" :
+          pct === 100 ? "#0a0" :
+          pct > 50 ? "#1a1" : "#555";
+        table += `<td style='text-align:center;background:${color};color:white'>${pct.toFixed(0)}%</td>`;
+      });
+      table += "</tr>";
+    });
+    table += "</table>";
+
+    matrixBox.innerHTML = table;
+
+    summaryBox.innerHTML = `
+      <h3>Ergebnisübersicht</h3>
+      <div>Gültige Kombinationen: ${validAssignments.length}</div>
+      <div>Gesamt geprüft: ${tested}</div>
+    `;
+  }
+
+  solveBtn.addEventListener("click", berechne);
+});
