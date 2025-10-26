@@ -402,7 +402,7 @@ window.addEventListener("DOMContentLoaded",()=>{
   document.querySelectorAll('nav button[data-target="page-nights"]').forEach(b=>b.addEventListener("click",render));
 });
 
-/* === 📊 Solver mit 5s Timeout & korrekten Prozentwerten === */
+/* === 📊 Asynchroner Solver mit 5s Timeout & Ladebalken-Animation === */
 window.addEventListener("DOMContentLoaded", () => {
   const solveBtn = document.getElementById("solveBtn"),
         summary = document.getElementById("summary"),
@@ -426,10 +426,14 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   async function berechne() {
-    const overlay = document.getElementById("overlay");
-    const progressBar = overlay?.querySelector(".progress .bar");
-    if (progressBar) progressBar.style.width = "0%";
     showOverlay();
+    const overlay = document.getElementById("overlay");
+    const bar = overlay?.querySelector(".progress .bar");
+    if (bar) {
+      bar.style.width = "0%";
+      bar.style.transition = "width 5s linear";
+      requestAnimationFrame(() => { bar.style.width = "100%"; });
+    }
 
     const { A, B } = getT();
     const M = getM();
@@ -453,14 +457,35 @@ window.addEventListener("DOMContentLoaded", () => {
 
     const counts = {};
     A.forEach(a => B.forEach(b => counts[`${a}-${b}`] = 0));
-    let total = 0, tested = 0;
+    let total = 0;
 
-    const maxIter = Math.pow(Math.min(A.length, B.length), 2) * 2;
-    const start = performance.now();
+    // --- timeout & worker simulation ---
     const timeoutMs = 5000;
-    let timedOut = false;
+    const start = performance.now();
 
-    const timer = setTimeout(() => { timedOut = true; }, timeoutMs);
+    // Asynchrone Schleife mit Zeitüberwachung
+    async function asyncDFS(i, used, cur) {
+      if (performance.now() - start > timeoutMs) throw new Error("timeout");
+      if (i === A.length) {
+        if (isValid(cur)) {
+          total++;
+          cur.forEach(p => counts[`${p.A}-${p.B}`]++);
+        }
+        return;
+      }
+      for (let j = 0; j < B.length; j++) {
+        if (used.has(j)) continue;
+        const a = A[i], b = B[j];
+        if (NM.has(`${a}-${b}`)) continue;
+        const pm = PM.find(p => p.A === a);
+        if (pm && pm.B !== b) continue;
+        used.add(j); cur.push({ A: a, B: b });
+        await asyncDFS(i + 1, used, cur);
+        cur.pop(); used.delete(j);
+        await new Promise(r => setTimeout(r, 0)); // kleine Pause für UI
+      }
+      if (A.length > B.length) await asyncDFS(i + 1, used, cur);
+    }
 
     function isValid(assign) {
       for (const nm of NM)
@@ -476,51 +501,29 @@ window.addEventListener("DOMContentLoaded", () => {
       return true;
     }
 
-    function dfs(i, used, cur) {
-      if (timedOut) return;
-      tested++;
-      if (i === A.length) {
-        if (isValid(cur)) {
-          total++;
-          cur.forEach(p => counts[`${p.A}-${p.B}`]++);
-        }
-        return;
-      }
-      for (let j = 0; j < B.length; j++) {
-        if (used.has(j)) continue;
-        const a = A[i], b = B[j];
-        if (NM.has(`${a}-${b}`)) continue;
-        const pm = PM.find(p => p.A === a);
-        if (pm && pm.B !== b) continue;
-        used.add(j); cur.push({ A: a, B: b });
-        dfs(i + 1, used, cur);
-        cur.pop(); used.delete(j);
-      }
-      if (A.length > B.length) dfs(i + 1, used, cur);
-    }
-
     try {
-      dfs(0, new Set(), []);
-    } finally {
-      clearTimeout(timer);
+      await asyncDFS(0, new Set(), []);
+    } catch (err) {
+      hideOverlay();
+      if (err.message === "timeout") {
+        summary.innerHTML = `
+          <div class="warning">
+            ⏱️ Berechnung wurde nach 5 Sekunden abgebrochen.<br>
+            Leider noch zu wenig Daten – bitte mehr Matching Nights oder Matchbox-Entscheidungen hinzufügen.
+          </div>`;
+        return;
+      } else {
+        throw err;
+      }
     }
 
     hideOverlay();
-
-    if (timedOut) {
-      summary.innerHTML = `
-        <div class="warning">
-          ⏱️ Berechnung wurde nach 5 Sekunden abgebrochen.<br>
-          Leider noch zu wenig Daten – bitte mehr Matching Nights oder Matchbox-Entscheidungen hinzufügen.
-        </div>`;
-      return;
-    }
 
     const dur = ((performance.now() - start) / 1000).toFixed(2);
     summary.innerHTML = `
       <h3>Ergebnis</h3>
       <div>${A.length}×${B.length} Teilnehmer</div>
-      <div>${total} gültige Kombinationen (${tested} geprüft, ${dur}s)</div>
+      <div>${total} gültige Kombination(en) (${dur}s)</div>
       <button id="exportMatrix" class="primary" style="margin-top:8px">Matrix speichern (PNG)</button>
     `;
     document.getElementById("exportMatrix").onclick = exportMatrix;
@@ -530,6 +533,7 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    // Matrix aufbauen
     let html = `<div class="ayto-table-container"><table class="ayto-table"><tr><th>A\\B</th>${B.map(b => `<th>${b}</th>`).join("")}</tr>`;
     A.forEach(a => {
       html += `<tr><td class="a-name">${a}</td>`;
