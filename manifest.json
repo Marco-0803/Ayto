@@ -3,8 +3,9 @@
   "short_name": "AYTO Solver",
   "start_url": "/Ayto/",
   "display": "standalone",
-  "background_color": "#0f1220",
+  "background_color": "#111122",
   "theme_color": "#346FFF",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "/Ayto/icons/icon-192.png",
