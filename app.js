@@ -65,7 +65,7 @@ window.addEventListener("DOMContentLoaded", () => {
         "Henna",
         "Joanna",
         "Nelly",
-        "Sandra"
+        "Sandra",
         "Viki"
       ];
 
