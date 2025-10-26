@@ -171,81 +171,209 @@ window.addEventListener("DOMContentLoaded",()=>{
 
   refresh(); render();
 });
+// === 🌙 Matching Nights (komplette Paarungen) ===
+window.addEventListener("DOMContentLoaded", () => {
+  const addNightBtn = document.getElementById("addNight");
+  const nightsList = document.getElementById("nights");
+  const STORAGE_KEY_NIGHTS = "aytoMatchingNights";
+  const STORAGE_KEY_TEILNEHMER = "aytoTeilnehmer";
 
-/* === 🌙 Matching Nights === */
-window.addEventListener("DOMContentLoaded",()=>{
-  const addNight=document.getElementById("addNight"),
-        nightsList=document.getElementById("nights");
-  if(!addNight||!nightsList) return;
+  if (!addNightBtn || !nightsList) return;
 
-  const KEY_N="aytoMatchingNights", KEY_T="aytoTeilnehmer";
-  const getTeilnehmer=()=>JSON.parse(localStorage.getItem(KEY_T)||'{"A":[],"B":[]}');
-  const loadN=()=>JSON.parse(localStorage.getItem(KEY_N)||"[]");
-  const saveN=a=>localStorage.setItem(KEY_N,JSON.stringify(a));
+  // Teilnehmer laden
+  function getTeilnehmer() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_TEILNEHMER);
+      if (!raw) return { A: [], B: [] };
+      const parsed = JSON.parse(raw);
+      return {
+        A: Array.isArray(parsed.A) ? parsed.A : [],
+        B: Array.isArray(parsed.B) ? parsed.B : []
+      };
+    } catch {
+      return { A: [], B: [] };
+    }
+  }
 
-  function render(){
-    const nights=loadN(); nightsList.innerHTML="";
-    if(!nights.length){nightsList.innerHTML="<div class='small muted'>Noch keine Matching Night angelegt</div>"; return;}
-    nights.forEach((n,i)=>{
-      const div=document.createElement("div");
-      div.className="card stack"; div.style.padding="10px";
-      div.innerHTML=`<div class="row" style="justify-content:space-between;align-items:center">
-        <strong>Night ${i+1}</strong><button class="danger small">✖</button></div>
-        <div class="small muted">Lichter: ${n.lights}</div>
-        <table style="width:100%;font-size:13px">${n.pairs.map(p=>`<tr><td>${p.A}</td><td>×</td><td>${p.B||"<i>Keine Partnerin</i>"}</td></tr>`).join("")}</table>`;
-      div.querySelector("button").onclick=()=>{const arr=loadN();arr.splice(i,1);saveN(arr);render();};
+  // Nights laden/speichern
+  function loadNights() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY_NIGHTS)) || [];
+    } catch {
+      return [];
+    }
+  }
+  function saveNights(arr) {
+    localStorage.setItem(STORAGE_KEY_NIGHTS, JSON.stringify(arr));
+  }
+
+  // Rendering der gespeicherten Nights
+  function renderNights() {
+    const nights = loadNights();
+    nightsList.innerHTML = "";
+
+    if (nights.length === 0) {
+      nightsList.innerHTML = "<div class='small muted'>Noch keine Matching Night angelegt</div>";
+      return;
+    }
+
+    nights.forEach((night, i) => {
+      const div = document.createElement("div");
+      div.className = "card stack";
+      div.style.padding = "10px";
+
+      div.innerHTML = `
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <strong>Night ${i + 1}</strong>
+          <button class="danger small">✖</button>
+        </div>
+        <div class="small muted">Lichter: ${night.lights}</div>
+        <table style="width:100%;font-size:13px">
+          ${night.pairs.map(p => `<tr><td>${p.A}</td><td>×</td><td>${p.B}</td></tr>`).join("")}
+        </table>
+      `;
+
+      div.querySelector("button").addEventListener("click", () => {
+        const nights = loadNights();
+        nights.splice(i, 1);
+        saveNights(nights);
+        renderNights();
+      });
+
       nightsList.appendChild(div);
     });
   }
 
-  addNight.onclick=()=>{
-    const {A,B}=getTeilnehmer();
-    if(!A.length||!B.length) return alert("Bitte zuerst Teilnehmer hinzufügen!");
-    const overlay=document.createElement("div");
-    overlay.style=`
-      position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:9999;`;
-    const box=document.createElement("div");
-    box.className="card stack"; box.style.maxWidth="400px"; box.style.background="#171a2b"; box.style.color="white"; box.style.padding="16px";
-    box.innerHTML="<h3>Neue Matching Night</h3>";
+  // Neue Night hinzufügen
+  addNightBtn.addEventListener("click", () => {
+    const { A, B } = getTeilnehmer();
+    if (A.length === 0 || B.length === 0) {
+      alert("Bitte zuerst Teilnehmer hinzufügen!");
+      return;
+    }
 
-    const table=document.createElement("table"); table.style.width="100%";
-    table.innerHTML="<tr><th>A-Person</th><th></th><th>B-Person</th></tr>";
-    A.forEach(a=>{
-      const tr=document.createElement("tr");
-      const sel=document.createElement("select");
-      sel.innerHTML='<option value="">Keine Partnerin</option>'+B.map(b=>`<option value="${b}">${b}</option>`).join("");
-      tr.innerHTML=`<td>${a}</td><td>×</td><td></td>`; tr.children[2].appendChild(sel);
+    // --- Erstelle UI für Auswahl ---
+    const overlay = document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.inset = "0";
+    overlay.style.background = "rgba(0,0,0,0.85)";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.zIndex = "10000";
+
+    const box = document.createElement("div");
+    box.className = "card stack";
+    box.style.maxWidth = "420px";
+    box.style.background = "#171a2b";
+    box.style.color = "white";
+    box.style.padding = "16px";
+    box.innerHTML = `<h3>Neue Matching Night</h3>`;
+
+    // === Tabelle mit Zuordnungen ===
+    const table = document.createElement("table");
+    table.style.width = "100%";
+    table.innerHTML = `<tr><th>A-Person</th><th></th><th>B-Person</th></tr>`;
+
+    // "Keine Partnerin" ist immer erlaubt
+    const optionsBase = [
+      '<option value="">— wählen —</option>',
+      '<option value="keine">Keine Partnerin</option>'
+    ];
+
+    const selects = [];
+    function updateDropdowns() {
+      const used = new Set(
+        selects.map(sel => sel.value).filter(v => v && v !== "keine")
+      );
+
+      selects.forEach(sel => {
+        const current = sel.value;
+        sel.innerHTML = optionsBase.concat(
+          B.filter(b => !used.has(b) || b === current)
+            .map(b => `<option value="${b}">${b}</option>`)
+        ).join("");
+        sel.value = current;
+      });
+    }
+
+    A.forEach(a => {
+      const tr = document.createElement("tr");
+      const sel = document.createElement("select");
+      selects.push(sel);
+      tr.innerHTML = `<td>${a}</td><td>×</td><td></td>`;
+      tr.children[2].appendChild(sel);
       table.appendChild(tr);
+
+      // Initial füllen
+      sel.innerHTML = optionsBase.concat(
+        B.map(b => `<option value="${b}">${b}</option>`)
+      ).join("");
+
+      // Wenn Auswahl geändert → Dropdowns neu aufbauen
+      sel.addEventListener("change", updateDropdowns);
     });
     box.appendChild(table);
 
-    const lightRow=document.createElement("div");
-    lightRow.className="row"; lightRow.style.marginTop="10px";
-    const lightLabel=document.createElement("label"); lightLabel.textContent="Lichter:";
-    const lightSelect=document.createElement("select");
-    for(let i=0;i<=Math.min(A.length,B.length);i++){
-      const opt=document.createElement("option"); opt.value=i; opt.textContent=i; lightSelect.appendChild(opt);
+    // === Lichter-Auswahl ===
+    const lightRow = document.createElement("div");
+    lightRow.className = "row";
+    lightRow.style.marginTop = "10px";
+    const lightLabel = document.createElement("label");
+    lightLabel.textContent = "Lichter:";
+    const lightSelect = document.createElement("select");
+    for (let i = 0; i <= Math.min(A.length, B.length); i++) {
+      const opt = document.createElement("option");
+      opt.value = i;
+      opt.textContent = i;
+      lightSelect.appendChild(opt);
     }
-    lightRow.appendChild(lightLabel); lightRow.appendChild(lightSelect); box.appendChild(lightRow);
+    lightRow.appendChild(lightLabel);
+    lightRow.appendChild(lightSelect);
+    box.appendChild(lightRow);
 
-    const btnRow=document.createElement("div"); btnRow.className="row"; btnRow.style.marginTop="12px";
-    const saveBtn=document.createElement("button"); saveBtn.textContent="Speichern"; saveBtn.className="primary";
-    const cancelBtn=document.createElement("button"); cancelBtn.textContent="Abbrechen"; cancelBtn.className="ghost";
-    btnRow.append(saveBtn,cancelBtn); box.appendChild(btnRow);
-    overlay.appendChild(box); document.body.appendChild(overlay);
-    cancelBtn.onclick=()=>overlay.remove();
+    // === Buttons (Speichern / Abbrechen) ===
+    const btnRow = document.createElement("div");
+    btnRow.className = "row";
+    btnRow.style.marginTop = "12px";
+    const saveBtn = document.createElement("button");
+    saveBtn.textContent = "Speichern";
+    saveBtn.className = "primary";
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "Abbrechen";
+    cancelBtn.className = "ghost";
+    btnRow.appendChild(saveBtn);
+    btnRow.appendChild(cancelBtn);
+    box.appendChild(btnRow);
 
-    saveBtn.onclick=()=>{
-      const selects=box.querySelectorAll("select");
-      const pairs=A.map((a,i)=>({A:a,B:selects[i].value||null}));
-      const lights=parseInt(lightSelect.value,10);
-      const arr=loadN(); arr.push({pairs,lights}); saveN(arr); overlay.remove(); render();
-    };
-  };
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
 
-  render();
+    cancelBtn.addEventListener("click", () => overlay.remove());
+
+    // === Speichern der Night ===
+    saveBtn.addEventListener("click", () => {
+      const pairs = [];
+      const selects = box.querySelectorAll("select");
+      selects.forEach((sel, idx) => {
+        if (idx < A.length) {
+          const value = sel.value;
+          if (value && value !== "keine") pairs.push({ A: A[idx], B: value });
+        }
+      });
+
+      const lights = parseInt(lightSelect.value, 10);
+      const nights = loadNights();
+      nights.push({ pairs, lights });
+      saveNights(nights);
+      overlay.remove();
+      renderNights();
+    });
+  });
+
+  // Initial aufrufen
+  renderNights();
 });
-
 /* === 🕒 Timeline === */
 window.addEventListener("DOMContentLoaded",()=>{
   const box=document.getElementById("timelineBox"); if(!box) return;
