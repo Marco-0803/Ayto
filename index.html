@@ -16,7 +16,7 @@
   <header>
     <img class="logo" src="icons/ayto-logo.jpg" alt="AYTO Logo"/>
     <h1>AYTO Solver 2025</h1>
-    <div class="small">Installierbare PWA • Offline nutzbar</div>
+    <div class="small">Offline nutzbar • Installierbar • v2025</div>
   </header>
 
   <main>
@@ -70,6 +70,14 @@
       </div>
     </section>
 
+    <!-- Nights (Timeline) -->
+    <section id="page-nights" class="page">
+      <div class="card stack">
+        <h2>🕒 Nights</h2>
+        <div class="timeline" id="timelineBox"></div>
+      </div>
+    </section>
+
     <!-- Ergebnisse -->
     <section id="page-ergebnisse" class="page">
       <div class="card stack">
@@ -84,14 +92,6 @@
         <div id="err" class="small"></div>
       </div>
     </section>
-
-    <!-- Timeline -->
-    <section id="page-nights" class="page">
-      <div class="card stack">
-        <h2>🕒 Nights</h2>
-        <div class="timeline" id="timelineBox"></div>
-      </div>
-    </section>
   </main>
 
   <!-- Bottom Navigation -->
@@ -103,7 +103,7 @@
     <button data-target="page-ergebnisse"><span class="icon">📊</span>Ergebnisse</button>
   </nav>
 
-  <!-- Overlay -->
+  <!-- Overlay (Berechnung) -->
   <div id="overlay">
     <div class="overlay-box">
       <img class="overlay-logo" src="icons/ayto-logo.jpg" alt="AYTO Logo"/>
