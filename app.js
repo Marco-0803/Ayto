@@ -627,12 +627,20 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // --- Häufigkeiten zählen ---
-    const counts = {};
-    A.forEach(a => B.forEach(b => counts[`${a}-${b}`] = 0));
-    for (const assign of validAssignments)
-      for (const p of assign)
-        counts[`${p.A}-${p.B}`]++;
+// --- Häufigkeiten zählen (mit Perfect-Match-Fix) ---
+const counts = {};
+A.forEach(a => B.forEach(b => counts[`${a}-${b}`] = 0));
+
+for (const assign of validAssignments) {
+  for (const p of assign) counts[`${p.A}-${p.B}`]++;
+}
+
+// --- Perfect-Matches erzwingen ---
+for (const pm of perfectMatches) {
+  // Alles außer der echten Kombination auf 0 setzen
+  A.forEach(a => counts[`${a}-${pm.B}`] = a === pm.A ? counts[`${a}-${pm.B}`] : 0);
+  B.forEach(b => counts[`${pm.A}-${b}`] = b === pm.B ? counts[`${pm.A}-${b}`] : 0);
+}
 
     // --- Matrix generieren ---
     let table = `
