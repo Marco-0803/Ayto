@@ -699,3 +699,4 @@ matrixBox.innerHTML = table;
 
   solveBtn.addEventListener("click", berechne);
 });
+}
