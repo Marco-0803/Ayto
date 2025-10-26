@@ -1,124 +1,30 @@
-<!doctype html>
-<html lang="de">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="theme-color" content="#346FFF"/>
-  <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <meta name="apple-mobile-web-app-title" content="AYTO Solver 2025"/>
-  <title>AYTO Solver 2025</title>
-  <link rel="manifest" href="manifest.json"/>
-  <link rel="apple-touch-icon" href="icons/icon-192.png"/>
-  <link rel="stylesheet" href="style.css"/>
-</head>
-<body>
-  <header>
-    <img class="logo" src="icons/ayto-logo.jpg" alt="AYTO Logo"/>
-    <h1>AYTO Solver 2025</h1>
-    <div class="small">Offline nutzbar • Installierbar • v2025</div>
-  </header>
 
-  <main>
-    <section id="page-teilnehmer" class="page active">
-      <div class="card stack">
-        <h2>👥 Teilnehmer</h2>
-        <div class="row">
-          <button id="prefill" class="ghost">🔁 Staffel 2025 vorbelegen (11 A / 10 B)</button>
-          <button id="addA" class="ghost">+ A-Person</button>
-          <button id="addB" class="ghost">+ B-Person</button>
-        </div>
-        <div class="row">
-          <div class="stack" style="flex:1">
-            <label>Gruppe A</label>
-            <div id="listA" class="list"></div>
-          </div>
-          <div class="stack" style="flex:1">
-            <label>Gruppe B</label>
-            <div id="listB" class="list"></div>
-          </div>
-        </div>
-        <div id="warnBalance" class="warning small" style="display:none"></div>
-      </div>
-    </section>
 
-    <section id="page-matchbox" class="page">
-      <div class="card stack">
-        <h2>💞 Matchbox</h2>
-        <div class="row">
-          <select id="tbA"></select><span>×</span><select id="tbB"></select>
-          <select id="tbType">
-            <option value="PM">Perfect Match</option>
-            <option value="NM">No Match</option>
-            <option value="SOLD">Sold (nur markieren)</option>
-          </select>
-          <button id="addTB">Hinzufügen</button>
-        </div>
-        <div id="tbList" class="list" style="margin-top:6px"></div>
-      </div>
-    </section>
-
-    <section id="page-entscheidungen" class="page">
-      <div class="card stack">
-        <h2>🌙 Matchingnight</h2>
-        <div class="small muted">Bei 11×10 muss genau <b>eine</b> A-Person ohne Partnerin bleiben.</div>
-        <div class="row"><button id="addNight" class="ghost">+ Night anlegen</button></div>
-        <div id="nights" class="list" style="margin-top:6px"></div>
-      </div>
-    </section>
-
-    <section id="page-nights" class="page">
-      <div class="card stack">
-        <h2>🕒 Nights</h2>
-        <div class="timeline" id="timelineBox"></div>
-      </div>
-    </section>
-
-    <section id="page-ergebnisse" class="page">
-      <div class="card stack">
-        <h2>📊 Ergebnisse</h2>
-        <div class="row">
-          <button id="solveBtn" class="primary">Berechnen</button>
-          <span id="status" class="pill">Bereit</span>
-        </div>
-        <div id="summary" class="stack" style="margin-top:8px"></div>
-        <div id="matrix" class="table-wrap" style="margin-top:10px; display:none"></div>
-        <div id="logs" class="stack" style="margin-top:10px"></div>
-      </div>
-    </section>
-  </main>
-
-  <nav class="bottom-nav" id="nav">
-    <button class="active" data-target="page-teilnehmer"><span class="icon">👥</span>Teilnehmer</button>
-    <button data-target="page-matchbox"><span class="icon">💞</span>Matchbox</button>
-    <button data-target="page-entscheidungen"><span class="icon">🌙</span>Matchingnight</button>
-    <button data-target="page-nights"><span class="icon">🕒</span>Nights</button>
-    <button data-target="page-ergebnisse"><span class="icon">📊</span>Ergebnisse</button>
-  </nav>
-
-  <div id="overlay">
-    <div class="overlay-box">
-      <img class="overlay-logo" src="icons/ayto-logo.jpg" alt="AYTO Logo"/>
-      <h3 class="overlay-title">Berechnung läuft...</h3>
-      <div class="progress"><div class="bar"></div></div>
-    </div>
-  </div>
-
-  <!-- 🧩 JS wird erst nach DOM geladen -->
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const script = document.createElement('script');
-      script.src = 'app.js';
-      document.body.appendChild(script);
+// Bottom nav + overlay logic
+(function(){
+  const nav = document.getElementById('nav');
+  const pages = document.querySelectorAll('.page');
+  if(nav){
+    nav.addEventListener('click', (e)=>{
+      const btn = e.target.closest('button'); if(!btn) return;
+      document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const id = btn.getAttribute('data-target');
+      pages.forEach(p=> p.classList.toggle('active', p.id===id));
+      window.scrollTo({top:0, behavior:'smooth'});
     });
+  }
+})();
 
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        if (!location.search.includes('no-sw')) {
-          navigator.serviceWorker.register('service-worker.js');
-        }
-      });
-    }
-  </script>
-</body>
-</html>
+function showOverlay(){ const ov=document.getElementById('overlay'); if(ov){ ov.classList.add('show'); } }
+function hideOverlay(){ const ov=document.getElementById('overlay'); if(ov){ ov.classList.remove('show'); } }
+
+window.addEventListener('DOMContentLoaded', ()=>{
+  const btn = document.getElementById('solveBtn');
+  if(btn){
+    btn.onclick = ()=>{
+      showOverlay();
+      setTimeout(()=>{ try{ if(typeof solve==='function') solve(); } finally { hideOverlay(); } }, 2000);
+    };
+  }
+});
