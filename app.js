@@ -117,3 +117,136 @@ window.addEventListener("DOMContentLoaded", () => {
   // Start mit geladenen Daten
   loadData();
 });
+// === Matchbox-Logik mit Speicherung ===
+window.addEventListener("DOMContentLoaded", () => {
+  const tbA = document.getElementById("tbA");
+  const tbB = document.getElementById("tbB");
+  const tbType = document.getElementById("tbType");
+  const tbAdd = document.getElementById("addTB");
+  const tbList = document.getElementById("tbList");
+
+  const STORAGE_KEY_MATCHES = "aytoMatchbox";
+  const STORAGE_KEY_TEILNEHMER = "aytoTeilnehmer";
+
+  if (!tbA || !tbB || !tbType || !tbAdd || !tbList) return;
+
+  // ------------------- Hilfsfunktionen -------------------
+  function loadMatches() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY_MATCHES)) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveMatches(matches) {
+    localStorage.setItem(STORAGE_KEY_MATCHES, JSON.stringify(matches));
+  }
+
+  function renderMatches() {
+    const matches = loadMatches();
+    tbList.innerHTML = "";
+
+    if (matches.length === 0) {
+      tbList.innerHTML = "<div class='small muted'>Noch keine Einträge</div>";
+      return;
+    }
+
+    matches.forEach((m, i) => {
+      const div = document.createElement("div");
+      div.className = "row";
+      const tagClass =
+        m.type === "PM" ? "tag good" :
+        m.type === "NM" ? "tag bad" :
+        "tag neutral";
+      const tagText =
+        m.type === "PM" ? "Perfect Match" :
+        m.type === "NM" ? "No Match" :
+        "Sold";
+      div.innerHTML = `
+        <div style="flex:1">${m.A} × ${m.B} <span class="${tagClass}">${tagText}</span></div>
+        <button class="danger small">✖</button>
+      `;
+      div.querySelector("button").addEventListener("click", () => {
+        matches.splice(i, 1);
+        saveMatches(matches);
+        renderMatches();
+      });
+      tbList.appendChild(div);
+    });
+  }
+
+  // ------------------- Dropdown aktualisieren -------------------
+  function getTeilnehmer() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY_TEILNEHMER)) || { A: [], B: [] };
+    } catch {
+      return { A: [], B: [] };
+    }
+  }
+
+  function refreshDropdowns() {
+    const data = getTeilnehmer();
+    tbA.innerHTML = "";
+    tbB.innerHTML = "";
+
+    const optA0 = document.createElement("option");
+    optA0.value = "";
+    optA0.textContent = "— A auswählen —";
+    tbA.appendChild(optA0);
+    data.A.forEach(name => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      tbA.appendChild(opt);
+    });
+
+    const optB0 = document.createElement("option");
+    optB0.value = "";
+    optB0.textContent = "— B auswählen —";
+    tbB.appendChild(optB0);
+    data.B.forEach(name => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      tbB.appendChild(opt);
+    });
+  }
+
+  // Änderungen an Teilnehmern beobachten (im selben Tab)
+  const listA = document.getElementById("listA");
+  const listB = document.getElementById("listB");
+  const observer = new MutationObserver(refreshDropdowns);
+  if (listA && listB) {
+    observer.observe(listA, { childList: true, subtree: true });
+    observer.observe(listB, { childList: true, subtree: true });
+  }
+
+  // ------------------- Hinzufügen -------------------
+  tbAdd.addEventListener("click", () => {
+    const a = tbA.value;
+    const b = tbB.value;
+    const type = tbType.value;
+
+    if (!a || !b) {
+      alert("Bitte A und B auswählen!");
+      return;
+    }
+
+    const matches = loadMatches();
+
+    // Doppel vermeiden
+    if (matches.some(m => m.A === a && m.B === b)) {
+      alert("Dieses Paar existiert bereits.");
+      return;
+    }
+
+    matches.push({ A: a, B: b, type });
+    saveMatches(matches);
+    renderMatches();
+  });
+
+  // ------------------- Initial laden -------------------
+  refreshDropdowns();
+  renderMatches();
+});
