@@ -503,7 +503,7 @@ window.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", renderTimeline);
   });
 });
-// === 🧮 AYTO Solver mit stylischer Matrix + Autoanzeige + Export ===
+// === 🧮 Vollständiger AYTO-Solver (mit ungleichen Teilnehmerzahlen & Matrix-Export) ===
 window.addEventListener("DOMContentLoaded", () => {
   const solveBtn = document.getElementById("solveBtn");
   const summaryBox = document.getElementById("summary");
@@ -512,16 +512,41 @@ window.addEventListener("DOMContentLoaded", () => {
 
   if (!solveBtn) return;
 
-  function factorial(n) {
-    return n <= 1 ? 1 : n * factorial(n - 1);
+  // --- Helferfunktionen ---
+  function getTeilnehmer() {
+    try { return JSON.parse(localStorage.getItem("aytoTeilnehmer")) || { A: [], B: [] }; }
+    catch { return { A: [], B: [] }; }
+  }
+  function getMatchbox() {
+    try { return JSON.parse(localStorage.getItem("aytoMatchbox")) || []; }
+    catch { return []; }
+  }
+  function getNights() {
+    try { return JSON.parse(localStorage.getItem("aytoMatchingNights")) || []; }
+    catch { return []; }
   }
 
-  function berechne() {
-    const { A, B } = JSON.parse(localStorage.getItem("aytoTeilnehmer")) || { A: [], B: [] };
-    const matchbox = JSON.parse(localStorage.getItem("aytoMatchbox")) || [];
-    const nights = JSON.parse(localStorage.getItem("aytoMatchingNights")) || [];
+  // --- Screenshot-Export ---
+  async function exportMatrix() {
+    const el = document.querySelector(".ayto-table-container");
+    if (!el) {
+      alert("Keine Matrix gefunden!");
+      return;
+    }
+    const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#1a1b2b" });
+    const link = document.createElement("a");
+    link.download = "AYTO-Matrix.png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  }
 
-    if (!A.length || !B.length) {
+  // --- Hauptfunktion ---
+  function berechne() {
+    const { A, B } = getTeilnehmer();
+    const matchbox = getMatchbox();
+    const nights = getNights();
+
+    if (A.length === 0 || B.length === 0) {
       alert("Bitte zuerst Teilnehmer hinzufügen!");
       return;
     }
@@ -529,6 +554,7 @@ window.addEventListener("DOMContentLoaded", () => {
     summaryBox.innerHTML = "<h3>Berechnung läuft...</h3>";
     logsBox.innerHTML = "";
     matrixBox.innerHTML = "";
+    matrixBox.style.display = "block";
 
     const noMatches = new Set(matchbox.filter(m => m.type === "NM").map(m => `${m.A}-${m.B}`));
     const perfectMatches = matchbox.filter(m => m.type === "PM");
@@ -536,21 +562,25 @@ window.addEventListener("DOMContentLoaded", () => {
     logsBox.innerHTML += `<div>${A.length}×${B.length} Teilnehmer</div>`;
     logsBox.innerHTML += `<div>${perfectMatches.length} Perfect Matches, ${noMatches.size} No Matches, ${nights.length} Nights</div>`;
 
-    // Permutation
+    const diff = Math.abs(A.length - B.length);
+    if (diff > 0) {
+      logsBox.innerHTML += `<div class="warning">⚠ Ungleichgewicht: ${A.length}×${B.length}. Es bleibt ${diff} Person(en) ohne Partner.</div>`;
+    }
+
+    // Permutationsgenerator
     function* permute(arr) {
       if (arr.length <= 1) yield arr;
       else for (let i = 0; i < arr.length; i++) {
         const rest = arr.slice(0, i).concat(arr.slice(i + 1));
-        for (const p of permute(rest)) yield [arr[i], ...p];
+        for (const p of permute(rest)) yield [arr[i]].concat(p);
       }
     }
 
-    // Prüfen
+    // Prüft, ob eine Zuordnung gültig ist
     function isValid(assign) {
-      for (const nm of noMatches)
-        if (assign.some(p => `${p.A}-${p.B}` === nm)) return false;
-      for (const pm of perfectMatches)
-        if (assign.some(p => p.A === pm.A && p.B !== pm.B)) return false;
+      for (const nm of noMatches) if (assign.some(p => `${p.A}-${p.B}` === nm)) return false;
+      for (const pm of perfectMatches) if (assign.some(p => p.A === pm.A && p.B !== pm.B)) return false;
+
       for (const n of nights) {
         const correct = n.pairs.filter(p => assign.some(a => a.A === p.A && a.B === p.B)).length;
         if (correct !== n.lights) return false;
@@ -558,129 +588,142 @@ window.addEventListener("DOMContentLoaded", () => {
       return true;
     }
 
-    // Alle Kombinationen prüfen
-    const valid = [];
+    // --- Hauptberechnung ---
+    const validAssignments = [];
     let tested = 0;
-    for (const perm of permute(B)) {
-      tested++;
-      const assign = A.map((a, i) => ({ A: a, B: perm[i] }));
-      if (isValid(assign)) valid.push(assign);
+
+    if (A.length === B.length) {
+      // Normalfall
+      for (const perm of permute(B)) {
+        tested++;
+        const assign = A.map((a, i) => ({ A: a, B: perm[i] }));
+        if (isValid(assign)) validAssignments.push(assign);
+      }
+    } else if (A.length > B.length) {
+      // Mehr Männer → einer bleibt übrig
+      for (let skip = 0; skip < A.length; skip++) {
+        const A_used = A.filter((_, i) => i !== skip);
+        for (const perm of permute(B)) {
+          tested++;
+          const assign = A_used.map((a, i) => ({ A: a, B: perm[i] }));
+          if (isValid(assign)) validAssignments.push(assign);
+        }
+      }
+    } else {
+      // Mehr Frauen → eine bleibt übrig
+      for (let skip = 0; skip < B.length; skip++) {
+        const B_used = B.filter((_, i) => i !== skip);
+        for (const perm of permute(B_used)) {
+          tested++;
+          const assign = A.map((a, i) => ({ A: a, B: perm[i] }));
+          if (isValid(assign)) validAssignments.push(assign);
+        }
+      }
     }
 
-    logsBox.innerHTML += `<div>Geprüft: ${tested}</div>`;
-    logsBox.innerHTML += `<div>Gültige Kombinationen: ${valid.length}</div>`;
+    // --- Zusammenfassung ---
+    summaryBox.innerHTML = `
+      <h3>Ergebnis</h3>
+      <div>${A.length}×${B.length} Teilnehmer</div>
+      <div>${validAssignments.length} gültige Kombination(en) aus ${tested} geprüft</div>
+      <button id="exportMatrix" class="primary" style="margin-top:8px">Matrix speichern (PNG)</button>
+    `;
 
-    if (!valid.length) {
-      summaryBox.innerHTML = "<h3>Keine gültige Kombination!</h3>";
+    document.getElementById("exportMatrix").onclick = exportMatrix;
+
+    if (validAssignments.length === 0) {
+      matrixBox.innerHTML = "<h3>Keine gültige Kombination gefunden!</h3>";
       return;
     }
 
-    // Häufigkeiten zählen
+    // --- Häufigkeiten zählen ---
     const counts = {};
     A.forEach(a => B.forEach(b => counts[`${a}-${b}`] = 0));
-    valid.forEach(v => v.forEach(p => counts[`${p.A}-${p.B}`]++));
+    validAssignments.forEach(assign =>
+      assign.forEach(p => counts[`${p.A}-${p.B}`]++)
+    );
 
-    // === Matrix erzeugen ===
+    // --- Matrix erzeugen ---
     let table = `
     <style>
-      .ayto-table-container{overflow-x:auto;margin-top:10px;border-radius:10px;box-shadow:0 0 12px rgba(0,0,0,.3);}
-      .ayto-table{width:100%;min-width:600px;border-collapse:collapse;background:#191b2d;font-size:13px;}
-      .ayto-table th,.ayto-table td{padding:8px 10px;text-align:center;border:1px solid rgba(255,255,255,.05);}
-      .ayto-table th{background:#23263c;color:#eee;position:sticky;top:0;}
-      .ayto-table .a-name{background:#23263c;text-align:left;position:sticky;left:0;}
-      .ayto-tooltip{visibility:hidden;position:absolute;background:rgba(0,0,0,.85);color:#fff;border-radius:6px;padding:4px 8px;font-size:12px;bottom:120%;left:50%;transform:translateX(-50%);opacity:0;transition:opacity .3s;}
-      td:hover .ayto-tooltip{visibility:visible;opacity:1;}
+      .ayto-table-container {
+        overflow-x:auto;
+        margin-top:10px;
+        border-radius:10px;
+        box-shadow:0 0 12px rgba(0,0,0,0.3);
+      }
+      .ayto-table {
+        width:100%;
+        border-collapse:collapse;
+        background:rgba(25,27,45,0.9);
+        font-size:13px;
+      }
+      .ayto-table th, .ayto-table td {
+        padding:6px 8px;
+        text-align:center;
+        border:1px solid rgba(255,255,255,0.05);
+        white-space:nowrap;
+      }
+      .ayto-table th {
+        background:rgba(35,38,60,0.95);
+        color:#eee;
+        font-weight:600;
+        position:sticky;
+        top:0;
+        z-index:2;
+      }
+      .ayto-table .a-name {
+        background:rgba(35,38,60,0.9);
+        text-align:left;
+        font-weight:600;
+        color:#ddd;
+        position:sticky;
+        left:0;
+        z-index:3;
+      }
+      .ayto-tooltip {
+        visibility:hidden;
+        position:absolute;
+        background:rgba(0,0,0,0.85);
+        color:#fff;
+        text-align:center;
+        border-radius:6px;
+        padding:3px 6px;
+        font-size:12px;
+        bottom:120%;
+        left:50%;
+        transform:translateX(-50%);
+        opacity:0;
+        transition:opacity 0.3s;
+        pointer-events:none;
+        white-space:nowrap;
+      }
+      .ayto-table td:hover .ayto-tooltip {
+        visibility:visible;
+        opacity:1;
+      }
     </style>
-    <div class="ayto-table-container"><table class="ayto-table"><tr><th>A \\ B</th>${B.map(b=>`<th>${b}</th>`).join("")}</tr>`;
+    <div class="ayto-table-container">
+    <table class="ayto-table">
+      <tr><th>A \\ B</th>${B.map(b => `<th>${b}</th>`).join("")}</tr>
+    `;
 
     A.forEach(a => {
       table += `<tr><td class="a-name">${a}</td>`;
       B.forEach(b => {
-        const c = counts[`${a}-${b}`];
-        const pct = (c / valid.length) * 100;
+        const count = counts[`${a}-${b}`];
+        const pct = (count / validAssignments.length) * 100;
         const hue = pct === 0 ? 0 : pct === 100 ? 120 : pct * 1.2;
-        const bg = `hsl(${hue},75%,${Math.min(25 + pct * .3, 55)}%)`;
-        table += `<td style="background:${bg};color:white;position:relative">${pct.toFixed(0)}%
-          <div class="ayto-tooltip">${pct.toFixed(2)}% (${c}/${valid.length})</div></td>`;
+        const bg = `hsl(${hue},75%,${Math.min(25 + pct * 0.3,55)}%)`;
+        const tooltip = `${pct.toFixed(2)}% (${count}/${validAssignments.length})`;
+        table += `<td style="background:${bg};color:#fff;position:relative">${pct.toFixed(0)}%<div class="ayto-tooltip">${tooltip}</div></td>`;
       });
       table += "</tr>";
     });
+
     table += "</table></div>";
-
-    // Matrix wirklich einsetzen:
     matrixBox.innerHTML = table;
-
-    // Ergebnis anzeigen
-    summaryBox.innerHTML = `<h3>Ergebnis</h3><div>${A.length}×${B.length} Teilnehmer</div>
-    <div>${valid.length} gültige Kombination(en) aus ${tested} geprüft</div>`;
-
-    // Button hinzufügen (falls html2canvas geladen)
-    if (typeof html2canvas !== "undefined") {
-      const btn = document.createElement("button");
-      btn.textContent = "Matrix speichern (PNG)";
-      btn.className = "primary";
-      btn.style.marginTop = "12px";
-      btn.onclick = async () => {
-        const canvas = await html2canvas(matrixBox, { backgroundColor: "#191b2d", scale: 2 });
-        const link = document.createElement("a");
-        link.download = "AYTO-Matrix.png";
-        link.href = canvas.toDataURL("image/png");
-        link.click();
-      };
-      summaryBox.insertAdjacentElement("afterend", btn);
-    }
   }
 
   solveBtn.addEventListener("click", berechne);
-});
-// === 🧩 Erweiterung: Matrix automatisch anzeigen + Screenshot-Export ===
-window.addEventListener("DOMContentLoaded", () => {
-  const matrixBox = document.getElementById("matrix");
-  const summaryBox = document.getElementById("summary");
-
-  // Prüfen, ob html2canvas schon eingebunden ist (für Screenshot)
-  if (typeof html2canvas === "undefined") {
-    const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
-    document.head.appendChild(script);
-  }
-
-  // Funktion, um Screenshot zu erstellen
-  async function exportMatrixAsImage() {
-    if (!matrixBox) return alert("Keine Matrix gefunden!");
-    try {
-      const canvas = await html2canvas(matrixBox, {
-        backgroundColor: "#191b2d",
-        scale: 2
-      });
-      const link = document.createElement("a");
-      link.download = `AYTO-Matrix-${new Date().toISOString().split("T")[0]}.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
-    } catch (e) {
-      alert("Screenshot konnte nicht erstellt werden: " + e.message);
-    }
-  }
-
-  // Beobachter: Wenn Matrix neu berechnet wird, automatisch anzeigen + Button hinzufügen
-  const observer = new MutationObserver(() => {
-    if (matrixBox && matrixBox.innerHTML.trim() !== "") {
-      // Prüfe, ob Button schon existiert
-      if (!document.getElementById("saveMatrixBtn")) {
-        const saveBtn = document.createElement("button");
-        saveBtn.id = "saveMatrixBtn";
-        saveBtn.textContent = "Matrix speichern (PNG)";
-        saveBtn.className = "primary";
-        saveBtn.style.marginTop = "12px";
-        saveBtn.style.display = "block";
-        saveBtn.style.width = "100%";
-        saveBtn.onclick = exportMatrixAsImage;
-        summaryBox.insertAdjacentElement("afterend", saveBtn);
-      }
-    }
-  });
-
-  if (matrixBox) {
-    observer.observe(matrixBox, { childList: true, subtree: true });
-  }
 });
