@@ -1,12 +1,11 @@
-
-
-// Bottom nav + overlay logic
+// === 📱 Bottom Navigation + Overlay ===
 (function(){
   const nav = document.getElementById('nav');
   const pages = document.querySelectorAll('.page');
   if(nav){
     nav.addEventListener('click', (e)=>{
-      const btn = e.target.closest('button'); if(!btn) return;
+      const btn = e.target.closest('button');
+      if(!btn) return;
       document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       const id = btn.getAttribute('data-target');
@@ -16,20 +15,20 @@
   }
 })();
 
-function showOverlay(){ const ov=document.getElementById('overlay'); if(ov){ ov.classList.add('show'); } }
-function hideOverlay(){ const ov=document.getElementById('overlay'); if(ov){ ov.classList.remove('show'); } }
+function showOverlay(){ const ov=document.getElementById('overlay'); if(ov) ov.classList.add('show'); }
+function hideOverlay(){ const ov=document.getElementById('overlay'); if(ov) ov.classList.remove('show'); }
 
 window.addEventListener('DOMContentLoaded', ()=>{
   const btn = document.getElementById('solveBtn');
   if(btn){
     btn.onclick = ()=>{
       showOverlay();
-      setTimeout(()=>{ try{ if(typeof solve==='function') solve(); } finally { hideOverlay(); } }, 2000);
+      setTimeout(()=>{ try{ if(typeof berechne==='function') berechne(); } finally { hideOverlay(); } }, 1000);
     };
   }
 });
 
-// === Teilnehmer-Verwaltung mit localStorage ===
+// === 👥 Teilnehmer-Verwaltung ===
 window.addEventListener("DOMContentLoaded", () => {
   const listA = document.getElementById("listA");
   const listB = document.getElementById("listB");
@@ -51,6 +50,7 @@ window.addEventListener("DOMContentLoaded", () => {
       return { A: [], B: [] };
     }
   }
+
   function saveData() {
     const A = [...listA.querySelectorAll("input")].map(i => i.value.trim()).filter(Boolean);
     const B = [...listB.querySelectorAll("input")].map(i => i.value.trim()).filter(Boolean);
@@ -90,20 +90,15 @@ window.addEventListener("DOMContentLoaded", () => {
     const bCount = listB.children.length;
     if (Math.abs(aCount - bCount) > 1) {
       warn.style.display = "block";
-      warn.textContent = `⚠ Ungleichgewicht: ${aCount} A‑Person(en) vs. ${bCount} B‑Person(en).`;
+      warn.textContent = `⚠ Ungleichgewicht: ${aCount} A-Person(en) vs. ${bCount} B-Person(en).`;
     } else {
       warn.style.display = "none";
     }
   }
 
-  addA.addEventListener("click", () => {
-    createPerson(`A${listA.children.length + 1}`, "A");
-  });
-  addB.addEventListener("click", () => {
-    createPerson(`B${listB.children.length + 1}`, "B");
-  });
+  addA.addEventListener("click", () => createPerson(`A${listA.children.length + 1}`, "A"));
+  addB.addEventListener("click", () => createPerson(`B${listB.children.length + 1}`, "B"));
 
-  // Optional: Reset-Button in "Matchingnight"-Sektion leert auch Teilnehmer
   const resetBtn = document.getElementById("resetBtn");
   if (resetBtn) {
     resetBtn.addEventListener("click", () => {
@@ -114,71 +109,37 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Start mit geladenen Daten
   loadData();
 });
-// === Matchbox-Logik mit dynamischer Teilnehmer-Verknüpfung ===
+
+// === 💞 Matchbox-Logik ===
 window.addEventListener("DOMContentLoaded", () => {
   const tbA = document.getElementById("tbA");
   const tbB = document.getElementById("tbB");
   const tbType = document.getElementById("tbType");
   const tbAdd = document.getElementById("addTB");
   const tbList = document.getElementById("tbList");
-
   if (!tbA || !tbB || !tbType || !tbAdd || !tbList) return;
 
-  const STORAGE_KEY_TEILNEHMER = "aytoTeilnehmer";
-  const STORAGE_KEY_MATCHES = "aytoMatchbox";
+  const KEY_MATCHES = "aytoMatchbox";
+  const KEY_TEILNEHMER = "aytoTeilnehmer";
 
-  // -------- Teilnehmer abrufen --------
   function getTeilnehmer() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY_TEILNEHMER);
+      const raw = localStorage.getItem(KEY_TEILNEHMER);
       if (!raw) return { A: [], B: [] };
       const parsed = JSON.parse(raw);
-      return {
-        A: Array.isArray(parsed.A) ? parsed.A : [],
-        B: Array.isArray(parsed.B) ? parsed.B : []
-      };
-    } catch (e) {
-      console.warn("Fehler beim Lesen der Teilnehmer:", e);
+      return parsed;
+    } catch {
       return { A: [], B: [] };
     }
   }
 
-  // -------- Dropdowns neu befüllen --------
-  function refreshDropdowns() {
-    const { A, B } = getTeilnehmer();
-
-    tbA.innerHTML = '<option value="">— A auswählen —</option>';
-    A.forEach(name => {
-      const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name;
-      tbA.appendChild(opt);
-    });
-
-    tbB.innerHTML = '<option value="">— B auswählen —</option>';
-    B.forEach(name => {
-      const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name;
-      tbB.appendChild(opt);
-    });
-  }
-
-  // -------- Matchbox-Einträge laden/speichern --------
   function loadMatches() {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY_MATCHES)) || [];
-    } catch {
-      return [];
-    }
+    try { return JSON.parse(localStorage.getItem(KEY_MATCHES)) || []; }
+    catch { return []; }
   }
-
-  function saveMatches(arr) {
-    localStorage.setItem(STORAGE_KEY_MATCHES, JSON.stringify(arr));
-  }
+  function saveMatches(arr) { localStorage.setItem(KEY_MATCHES, JSON.stringify(arr)); }
 
   function renderMatches() {
     const matches = loadMatches();
@@ -190,14 +151,8 @@ window.addEventListener("DOMContentLoaded", () => {
     matches.forEach((m, i) => {
       const div = document.createElement("div");
       div.className = "row";
-      const tagClass =
-        m.type === "PM" ? "tag good" :
-        m.type === "NM" ? "tag bad" :
-        "tag neutral";
-      const tagText =
-        m.type === "PM" ? "Perfect Match" :
-        m.type === "NM" ? "No Match" :
-        "Sold";
+      const tagClass = m.type === "PM" ? "tag good" : m.type === "NM" ? "tag bad" : "tag neutral";
+      const tagText = m.type === "PM" ? "Perfect Match" : m.type === "NM" ? "No Match" : "Sold";
       div.innerHTML = `
         <div style="flex:1">${m.A} × ${m.B} <span class="${tagClass}">${tagText}</span></div>
         <button class="danger small">✖</button>
@@ -212,491 +167,181 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // -------- Eintrag hinzufügen --------
   tbAdd.addEventListener("click", () => {
     const a = tbA.value.trim();
     const b = tbB.value.trim();
     const type = tbType.value;
-    if (!a || !b) {
-      alert("Bitte A und B auswählen!");
-      return;
-    }
+    if (!a || !b) return alert("Bitte A und B auswählen!");
     const arr = loadMatches();
-    if (arr.some(m => m.A === a && m.B === b)) {
-      alert("Dieses Paar existiert bereits.");
-      return;
-    }
+    if (arr.some(m => m.A === a && m.B === b)) return alert("Dieses Paar existiert bereits.");
     arr.push({ A: a, B: b, type });
     saveMatches(arr);
     renderMatches();
   });
 
-  // -------- Reaktion auf Teilnehmeränderung --------
+  function refreshDropdowns() {
+    const { A, B } = getTeilnehmer();
+    tbA.innerHTML = '<option value="">— A auswählen —</option>';
+    A.forEach(n => tbA.insertAdjacentHTML("beforeend", `<option>${n}</option>`));
+    tbB.innerHTML = '<option value="">— B auswählen —</option>';
+    B.forEach(n => tbB.insertAdjacentHTML("beforeend", `<option>${n}</option>`));
+  }
+
   const listA = document.getElementById("listA");
   const listB = document.getElementById("listB");
-  const observer = new MutationObserver(() => {
-    refreshDropdowns();
-  });
-  if (listA) observer.observe(listA, { childList: true, subtree: true });
-  if (listB) observer.observe(listB, { childList: true, subtree: true });
+  const obs = new MutationObserver(refreshDropdowns);
+  if (listA) obs.observe(listA, { childList: true });
+  if (listB) obs.observe(listB, { childList: true });
 
-  // -------- Startinitialisierung --------
   refreshDropdowns();
   renderMatches();
 });
-// === 🌙 Matching Nights (komplette Paarungen) ===
+
+// === 🌙 Matching Nights ===
 window.addEventListener("DOMContentLoaded", () => {
   const addNightBtn = document.getElementById("addNight");
   const nightsList = document.getElementById("nights");
-  const STORAGE_KEY_NIGHTS = "aytoMatchingNights";
-  const STORAGE_KEY_TEILNEHMER = "aytoTeilnehmer";
-
   if (!addNightBtn || !nightsList) return;
+  const KEY_NIGHTS = "aytoMatchingNights";
+  const KEY_TEILNEHMER = "aytoTeilnehmer";
 
-  // Teilnehmer laden
   function getTeilnehmer() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY_TEILNEHMER);
-      if (!raw) return { A: [], B: [] };
-      const parsed = JSON.parse(raw);
-      return {
-        A: Array.isArray(parsed.A) ? parsed.A : [],
-        B: Array.isArray(parsed.B) ? parsed.B : []
-      };
-    } catch {
-      return { A: [], B: [] };
-    }
+    try { return JSON.parse(localStorage.getItem(KEY_TEILNEHMER)) || {A:[],B:[]}; }
+    catch { return {A:[],B:[]}; }
   }
+  function loadNights() { try { return JSON.parse(localStorage.getItem(KEY_NIGHTS)) || []; } catch { return []; } }
+  function saveNights(arr){ localStorage.setItem(KEY_NIGHTS, JSON.stringify(arr)); }
 
-  // Nights laden/speichern
-  function loadNights() {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY_NIGHTS)) || [];
-    } catch {
-      return [];
-    }
-  }
-  function saveNights(arr) {
-    localStorage.setItem(STORAGE_KEY_NIGHTS, JSON.stringify(arr));
-  }
-
-  // Rendering
-  function renderNights() {
+  function renderNights(){
     const nights = loadNights();
     nightsList.innerHTML = "";
-
-    if (nights.length === 0) {
+    if(nights.length===0){
       nightsList.innerHTML = "<div class='small muted'>Noch keine Matching Night angelegt</div>";
       return;
     }
-
-    nights.forEach((night, i) => {
+    nights.forEach((n,i)=>{
       const div = document.createElement("div");
       div.className = "card stack";
-      div.style.padding = "10px";
-
-      div.innerHTML = `
-        <div class="row" style="justify-content:space-between;align-items:center">
-          <strong>Night ${i + 1}</strong>
-          <button class="danger small">✖</button>
-        </div>
-        <div class="small muted">Lichter: ${night.lights}</div>
-        <table style="width:100%;font-size:13px">
-          ${night.pairs
-            .map(p => `<tr><td>${p.A}</td><td>×</td><td>${p.B}</td></tr>`)
-            .join("")}
-        </table>
-      `;
-
-      div.querySelector("button").addEventListener("click", () => {
-        nights.splice(i, 1);
-        saveNights(nights);
-        renderNights();
-      });
-
+      div.innerHTML = `<strong>Night ${i+1}</strong> – ${n.lights} Lichter<table>${n.pairs.map(p=>`<tr><td>${p.A}</td><td>×</td><td>${p.B}</td></tr>`).join("")}</table><button class='danger small'>✖</button>`;
+      div.querySelector("button").addEventListener("click",()=>{ nights.splice(i,1); saveNights(nights); renderNights(); });
       nightsList.appendChild(div);
     });
   }
 
-  // Neue Night hinzufügen
-  addNightBtn.addEventListener("click", () => {
-    const { A, B } = getTeilnehmer();
-    if (A.length === 0 || B.length === 0) {
-      alert("Bitte zuerst Teilnehmer hinzufügen!");
-      return;
-    }
+  addNightBtn.addEventListener("click",()=>{
+    const {A,B}=getTeilnehmer();
+    if(!A.length||!B.length) return alert("Bitte zuerst Teilnehmer hinzufügen!");
 
-    // --- Erstelle UI für Auswahl ---
-    const overlay = document.createElement("div");
-    overlay.style.position = "fixed";
-    overlay.style.inset = "0";
-    overlay.style.background = "rgba(0,0,0,0.85)";
-    overlay.style.display = "flex";
-    overlay.style.alignItems = "center";
-    overlay.style.justifyContent = "center";
-    overlay.style.zIndex = "10000";
-
-    const box = document.createElement("div");
-    box.className = "card stack";
-    box.style.maxWidth = "400px";
-    box.style.background = "#171a2b";
-    box.style.color = "white";
-    box.style.padding = "16px";
-    box.innerHTML = `<h3>Neue Matching Night</h3>`;
-
-    // Tabelle mit Zuordnungen
-    const table = document.createElement("table");
-    table.style.width = "100%";
-    table.innerHTML = `
-      <tr><th>A-Person</th><th></th><th>B-Person</th></tr>
-    `;
-    A.forEach((a, i) => {
-      const tr = document.createElement("tr");
-      const sel = document.createElement("select");
-      sel.innerHTML =
-        '<option value="">— wählen —</option>' +
-        B.map(b => `<option value="${b}">${b}</option>`).join("");
-      tr.innerHTML = `<td>${a}</td><td>×</td><td></td>`;
-      tr.children[2].appendChild(sel);
-      table.appendChild(tr);
-    });
-    box.appendChild(table);
-
-    // Lichter-Auswahl
-    const lightRow = document.createElement("div");
-    lightRow.className = "row";
-    lightRow.style.marginTop = "10px";
-    const lightLabel = document.createElement("label");
-    lightLabel.textContent = "Lichter:";
-    const lightSelect = document.createElement("select");
-    for (let i = 0; i <= Math.min(A.length, B.length); i++) {
-      const opt = document.createElement("option");
-      opt.value = i;
-      opt.textContent = i;
-      lightSelect.appendChild(opt);
-    }
-    lightRow.appendChild(lightLabel);
-    lightRow.appendChild(lightSelect);
-    box.appendChild(lightRow);
-
-    // Buttons
-    const btnRow = document.createElement("div");
-    btnRow.className = "row";
-    btnRow.style.marginTop = "12px";
-    const saveBtn = document.createElement("button");
-    saveBtn.textContent = "Speichern";
-    saveBtn.className = "primary";
-    const cancelBtn = document.createElement("button");
-    cancelBtn.textContent = "Abbrechen";
-    cancelBtn.className = "ghost";
-    btnRow.appendChild(saveBtn);
-    btnRow.appendChild(cancelBtn);
-    box.appendChild(btnRow);
-
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-
-    cancelBtn.addEventListener("click", () => overlay.remove());
-
-    saveBtn.addEventListener("click", () => {
-      const pairs = [];
-      const selects = box.querySelectorAll("select");
-      selects.forEach((sel, idx) => {
-        // Die letzten Selects sind für Lichter, daher filtern
-        if (idx < A.length) {
-          const value = sel.value;
-          if (value) pairs.push({ A: A[idx], B: value });
-        }
-      });
-
-      if (pairs.length !== A.length) {
-        alert("Bitte für jede A-Person eine B-Person wählen!");
-        return;
-      }
-
-      const lights = parseInt(lightSelect.value, 10);
-      const nights = loadNights();
-      nights.push({ pairs, lights });
-      saveNights(nights);
-      overlay.remove();
-      renderNights();
-    });
+    const pairs=[];
+    A.forEach((a,i)=> pairs.push({A:a,B:B[i%B.length]}));
+    const lights = prompt("Wie viele Lichter?");
+    const arr=loadNights(); arr.push({pairs,lights:parseInt(lights||0)});
+    saveNights(arr); renderNights();
   });
 
-  // Initial laden
   renderNights();
 });
-// === 🕒 Timeline-Seite ("Nights") ===
-window.addEventListener("DOMContentLoaded", () => {
-  const box = document.getElementById("timelineBox");
-  if (!box) return;
 
-  const KEY_MATCHBOX = "aytoMatchbox";
-  const KEY_NIGHTS = "aytoMatchingNights";
-
-  function getMatchbox() {
-    try { return JSON.parse(localStorage.getItem(KEY_MATCHBOX)) || []; }
-    catch { return []; }
+// === 🕒 Timeline ===
+window.addEventListener("DOMContentLoaded",()=>{
+  const box=document.getElementById("timelineBox");
+  if(!box)return;
+  const MB="aytoMatchbox",N="aytoMatchingNights";
+  function g(k){try{return JSON.parse(localStorage.getItem(k))||[]}catch{return[]}}
+  function render(){
+    const m=g(MB),n=g(N);
+    box.innerHTML="";
+    if(!m.length&&!n.length){box.innerHTML="<div class='small muted'>Keine Ereignisse</div>";return;}
+    if(m.length){box.innerHTML+="<h3>💞 Matchbox</h3>"+m.map((x,i)=>`<div>${x.A} × ${x.B} (${x.type})</div>`).join("")}
+    if(n.length){box.innerHTML+="<h3>🌙 Nights</h3>"+n.map((x,i)=>`<div>Night ${i+1}: ${x.lights} Lichter</div>`).join("")}
   }
-  function getNights() {
-    try { return JSON.parse(localStorage.getItem(KEY_NIGHTS)) || []; }
-    catch { return []; }
-  }
-
-  function renderTimeline() {
-    const matchbox = getMatchbox();
-    const nights = getNights();
-    box.innerHTML = "";
-
-    if (matchbox.length === 0 && nights.length === 0) {
-      box.innerHTML = "<div class='small muted'>Noch keine Ereignisse vorhanden</div>";
-      return;
-    }
-
-    // --- Matchbox-Einträge zuerst ---
-    if (matchbox.length > 0) {
-      const mbHeader = document.createElement("h3");
-      mbHeader.textContent = "💞 Matchbox-Entscheidungen";
-      box.appendChild(mbHeader);
-
-      matchbox.forEach((m, i) => {
-        const div = document.createElement("div");
-        div.className = "card stack";
-        const emoji = m.type === "PM" ? "✅" : m.type === "NM" ? "❌" : "🟦";
-        const txt = m.type === "PM" ? "Perfect Match"
-                  : m.type === "NM" ? "No Match" : "Sold";
-        div.innerHTML = `<strong>Matchbox ${i + 1}</strong><div>${emoji} ${m.A} × ${m.B} — ${txt}</div>`;
-        box.appendChild(div);
-      });
-    }
-
-    // --- Dann Matching Nights ---
-    if (nights.length > 0) {
-      const nightHeader = document.createElement("h3");
-      nightHeader.textContent = "🌙 Matching Nights";
-      box.appendChild(nightHeader);
-
-      nights.forEach((n, i) => {
-        const div = document.createElement("div");
-        div.className = "card stack";
-        div.style.padding = "10px";
-        div.innerHTML = `<strong>Night ${i + 1}</strong> – ${n.lights} Lichter`;
-
-        const table = document.createElement("table");
-        table.style.width = "100%";
-        table.style.fontSize = "13px";
-        table.innerHTML = n.pairs
-          .map(p => `<tr><td>${p.A}</td><td>×</td><td>${p.B}</td></tr>`)
-          .join("");
-        div.appendChild(table);
-
-        box.appendChild(div);
-      });
-    }
-  }
-
-  // Seite beim Laden aufbauen
-  renderTimeline();
-
-  // Optional: neu rendern, wenn man zur Seite wechselt
-  document.querySelectorAll('nav button[data-target="page-nights"]').forEach(btn => {
-    btn.addEventListener("click", renderTimeline);
-  });
+  render();
 });
-// === 🧮 Vollständiger AYTO-Solver ===
-window.addEventListener("DOMContentLoaded", () => {
-  const solveBtn = document.getElementById("solveBtn");
-  const summaryBox = document.getElementById("summary");
-  const logsBox = document.getElementById("logs");
-  const matrixBox = document.getElementById("matrix");
 
-  if (!solveBtn) return;
+// === 🧮 Solver mit stylischer Matrix ===
+window.addEventListener("DOMContentLoaded",()=>{
+  const solveBtn=document.getElementById("solveBtn");
+  const summaryBox=document.getElementById("summary");
+  const logsBox=document.getElementById("logs");
+  const matrixBox=document.getElementById("matrix");
+  if(!solveBtn)return;
 
-  function getTeilnehmer() {
-    try { return JSON.parse(localStorage.getItem("aytoTeilnehmer")) || { A: [], B: [] }; }
-    catch { return { A: [], B: [] }; }
-  }
-  function getMatchbox() {
-    try { return JSON.parse(localStorage.getItem("aytoMatchbox")) || []; }
-    catch { return []; }
-  }
-  function getNights() {
-    try { return JSON.parse(localStorage.getItem("aytoMatchingNights")) || []; }
-    catch { return []; }
-  }
+  function factorial(n){return n<=1?1:n*factorial(n-1);}
 
-  function berechne() {
-    const { A, B } = getTeilnehmer();
-    const matchbox = getMatchbox();
-    const nights = getNights();
+  function berechne(){
+    const {A,B}=JSON.parse(localStorage.getItem("aytoTeilnehmer"))||{A:[],B:[]};
+    const matchbox=JSON.parse(localStorage.getItem("aytoMatchbox"))||[];
+    const nights=JSON.parse(localStorage.getItem("aytoMatchingNights"))||[];
+    if(!A.length||!B.length)return alert("Bitte zuerst Teilnehmer hinzufügen!");
 
-    if (A.length === 0 || B.length === 0) {
-      alert("Bitte zuerst Teilnehmer hinzufügen!");
-      return;
-    }
+    summaryBox.innerHTML="<h3>Berechnung läuft...</h3>";
+    logsBox.innerHTML=""; matrixBox.innerHTML="";
 
-    summaryBox.innerHTML = "<h3>Berechnung läuft...</h3>";
-    logsBox.innerHTML = "";
-    matrixBox.innerHTML = "";
+    const noMatches=new Set(matchbox.filter(m=>m.type==="NM").map(m=>`${m.A}-${m.B}`));
+    const perfectMatches=matchbox.filter(m=>m.type==="PM");
 
-    const noMatches = new Set(matchbox.filter(m => m.type === "NM").map(m => `${m.A}-${m.B}`));
-    const perfectMatches = matchbox.filter(m => m.type === "PM");
+    logsBox.innerHTML+=`<div>${A.length}×${B.length} Teilnehmer</div>`;
+    logsBox.innerHTML+=`<div>${perfectMatches.length} PM, ${noMatches.size} NM, ${nights.length} Nights</div>`;
 
-    logsBox.innerHTML += `<div>Teilnehmer: ${A.length} Männer × ${B.length} Frauen</div>`;
-    logsBox.innerHTML += `<div>${perfectMatches.length} Perfect Matches, ${noMatches.size} No Matches</div>`;
-    logsBox.innerHTML += `<div>${nights.length} Matching Nights werden geprüft...</div>`;
-
-    // Hilfsfunktion: Permutationen aller B-Zuweisungen
-    function* permute(arr) {
-      if (arr.length <= 1) yield arr;
-      else for (let i = 0; i < arr.length; i++) {
-        const rest = arr.slice(0, i).concat(arr.slice(i + 1));
-        for (const p of permute(rest)) yield [arr[i]].concat(p);
+    function* permute(arr){
+      if(arr.length<=1)yield arr;
+      else for(let i=0;i<arr.length;i++){
+        const rest=arr.slice(0,i).concat(arr.slice(i+1));
+        for(const p of permute(rest))yield [arr[i],...p];
       }
     }
 
-    // Prüft, ob eine Zuordnung alle Bedingungen erfüllt
-    function isValidAssignment(assign) {
-      // assign = [{A,B}, …]
-      for (const nm of noMatches) if (assign.some(p => `${p.A}-${p.B}` === nm)) return false;
-      for (const pm of perfectMatches) if (assign.some(p => p.A === pm.A && p.B !== pm.B)) return false;
-
-      // Matching Nights prüfen
-      for (const n of nights) {
-        const correct = n.pairs.filter(p => assign.some(a => a.A === p.A && a.B === p.B)).length;
-        if (correct !== n.lights) return false;
+    function isValid(assign){
+      for(const nm of noMatches)if(assign.some(p=>`${p.A}-${p.B}`===nm))return false;
+      for(const pm of perfectMatches)if(assign.some(p=>p.A===pm.A&&p.B!==pm.B))return false;
+      for(const n of nights){
+        const correct=n.pairs.filter(p=>assign.some(a=>a.A===p.A&&a.B===p.B)).length;
+        if(correct!==n.lights)return false;
       }
       return true;
     }
 
-    // Alle möglichen Kombinationen prüfen
-    const validAssignments = [];
-    let tested = 0;
-    const total = factorial(B.length);
-
-    function factorial(n) { return n <= 1 ? 1 : n * factorial(n - 1); }
-
-    for (const perm of permute(B)) {
+    const valid=[],total=factorial(B.length);let tested=0;
+    for(const perm of permute(B)){
       tested++;
-      const assign = A.map((a, i) => ({ A: a, B: perm[i] }));
-      if (isValidAssignment(assign)) validAssignments.push(assign);
+      const assign=A.map((a,i)=>({A:a,B:perm[i]}));
+      if(isValid(assign))valid.push(assign);
     }
 
-    logsBox.innerHTML += `<div>Geprüft: ${tested} Kombinationen</div>`;
-    logsBox.innerHTML += `<div>Gültige Kombinationen: ${validAssignments.length}</div>`;
+    logsBox.innerHTML+=`<div>Geprüft: ${tested}</div><div>Gültig: ${valid.length}</div>`;
+    if(!valid.length)return summaryBox.innerHTML="<h3>Keine gültige Kombination!</h3>";
 
-    if (validAssignments.length === 0) {
-      summaryBox.innerHTML = "<h3>Keine Kombination erfüllt alle Bedingungen!</h3>";
-      return;
-    }
+    const counts={};A.forEach(a=>B.forEach(b=>counts[`${a}-${b}`]=0));
+    valid.forEach(v=>v.forEach(p=>counts[`${p.A}-${p.B}`]++));
 
-    // Häufigkeit jedes möglichen Paares zählen
-    const counts = {};
-    A.forEach(a => B.forEach(b => counts[`${a}-${b}`] = 0));
-
-    validAssignments.forEach(assign =>
-      assign.forEach(p => counts[`${p.A}-${p.B}`]++)
-    );
-
-// === Stylische AYTO-Matrix mit Tooltip & Responsive Design ===
-let table = `
+    let table=`
 <style>
-  .ayto-table-container {
-    overflow-x: auto;
-    margin-top: 10px;
-    border-radius: 10px;
-    box-shadow: 0 0 12px rgba(0,0,0,0.3);
-  }
-  .ayto-table {
-    width: 100%;
-    min-width: 600px;
-    border-collapse: collapse;
-    background: rgba(25,27,45,0.9);
-    font-size: 13px;
-  }
-  .ayto-table th, .ayto-table td {
-    padding: 8px 10px;
-    text-align: center;
-    border: 1px solid rgba(255,255,255,0.05);
-    white-space: nowrap;
-  }
-  .ayto-table th {
-    background: rgba(35,38,60,0.95);
-    color: #eee;
-    font-weight: 600;
-    position: sticky;
-    top: 0;
-    z-index: 2;
-  }
-  .ayto-table td {
-    color: #fff;
-    position: relative;
-    transition: all 0.25s ease;
-  }
-  .ayto-table td:hover {
-    transform: scale(1.05);
-    filter: brightness(1.4);
-    z-index: 3;
-  }
-  .ayto-table .a-name {
-    background: rgba(35,38,60,0.9);
-    text-align: left;
-    font-weight: 600;
-    color: #ddd;
-    position: sticky;
-    left: 0;
-    z-index: 3;
-  }
-  /* Tooltip */
-  .ayto-tooltip {
-    visibility: hidden;
-    position: absolute;
-    background: rgba(0,0,0,0.85);
-    color: #fff;
-    text-align: center;
-    border-radius: 6px;
-    padding: 4px 8px;
-    font-size: 12px;
-    bottom: 120%;
-    left: 50%;
-    transform: translateX(-50%);
-    opacity: 0;
-    transition: opacity 0.3s;
-    pointer-events: none;
-    white-space: nowrap;
-  }
-  .ayto-table td:hover .ayto-tooltip {
-    visibility: visible;
-    opacity: 1;
-  }
+  .ayto-table-container{overflow-x:auto;margin-top:10px;border-radius:10px;box-shadow:0 0 12px rgba(0,0,0,.3);}
+  .ayto-table{width:100%;min-width:600px;border-collapse:collapse;background:#191b2d;font-size:13px;}
+  .ayto-table th,.ayto-table td{padding:8px 10px;text-align:center;border:1px solid rgba(255,255,255,.05);}
+  .ayto-table th{background:#23263c;color:#eee;position:sticky;top:0;}
+  .ayto-table .a-name{background:#23263c;text-align:left;position:sticky;left:0;}
+  .ayto-tooltip{visibility:hidden;position:absolute;background:rgba(0,0,0,.85);color:#fff;border-radius:6px;padding:4px 8px;font-size:12px;bottom:120%;left:50%;transform:translateX(-50%);opacity:0;transition:opacity .3s;}
+  td:hover .ayto-tooltip{visibility:visible;opacity:1;}
 </style>
+<div class="ayto-table-container"><table class="ayto-table"><tr><th>A \\ B</th>${B.map(b=>`<th>${b}</th>`).join("")}</tr>`;
+    A.forEach(a=>{
+      table+=`<tr><td class="a-name">${a}</td>`;
+      B.forEach(b=>{
+        const c=counts[`${a}-${b}`];
+        const pct=(c/valid.length)*100;
+        const hue=pct===0?0:pct===100?120:pct*1.2;
+        const bg=`hsl(${hue},75%,${Math.min(25+pct*.3,55)}%)`;
+        table+=`<td style="background:${bg};color:white;position:relative">${pct.toFixed(0)}%
+          <div class="ayto-tooltip">${pct.toFixed(2)}% (${c}/${valid.length})</div></td>`;
+      });
+      table+="</tr>";
+    });
+    table+="</table></div>";
+    matrixBox.innerHTML=table;
 
-<div class="ayto-table-container">
-<table class="ayto-table">
-<tr><th>A \\ B</th>${B.map(b => `<th>${b}</th>`).join("")}</tr>
-`;
-
-A.forEach(a => {
-  table += `<tr><td class="a-name">${a}</td>`;
-  B.forEach(b => {
-    const count = counts[`${a}-${b}`];
-    const pct = (count / validAssignments.length) * 100;
-    const hue = pct === 0 ? 0 : pct === 100 ? 120 : pct * 1.2; // Rot→Grün Skala
-    const bg = `hsl(${hue}, 75%, ${Math.min(25 + pct * 0.3, 55)}%)`;
-    const tooltip = `${pct.toFixed(2)}% (${count} / ${validAssignments.length} gültige Kombinationen)`;
-    table += `
-      <td style="background:${bg}">
-        ${pct.toFixed(0)}%
-        <div class="ayto-tooltip">${tooltip}</div>
-      </td>
-    `;
-  });
-  table += "</tr>";
-});
-table += "</table></div>";
-
-matrixBox.innerHTML = table;
+    summaryBox.innerHTML=`<h3>Ergebnis</h3><div>Gültige Kombinationen: ${valid.length}</div><div>Geprüft: ${tested}</div>`;
+  }
 
   solveBtn.addEventListener("click", berechne);
 });
-}
