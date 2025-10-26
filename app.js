@@ -402,22 +402,28 @@ window.addEventListener("DOMContentLoaded",()=>{
   document.querySelectorAll('nav button[data-target="page-nights"]').forEach(b=>b.addEventListener("click",render));
 });
 
-/* === 📊 Solver mit echtem Fortschrittsbalken & stabiler Berechnung === */
+/* === 📊 Hybrid-Solver: schnell, mit Overlay/Progress, 20s Timeout, PNG-Export === */
 window.addEventListener("DOMContentLoaded", () => {
-  const solveBtn = document.getElementById("solveBtn"),
-        summary = document.getElementById("summary"),
-        matrix = document.getElementById("matrix");
+  const solveBtn   = document.getElementById("solveBtn");
+  const summaryBox = document.getElementById("summary");
+  const matrixBox  = document.getElementById("matrix");
+  const logsBox    = document.getElementById("logs");
 
   if (!solveBtn) return;
 
+  // ---- Storage-Reader
   const get = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch { return d; } };
   const getT = () => get("aytoTeilnehmer", { A: [], B: [] });
   const getM = () => get("aytoMatchbox", []);
   const getN = () => get("aytoMatchingNights", []);
 
+  // ---- Optionaler PNG-Export (html2canvas ist optional)
   async function exportMatrix() {
     const el = document.querySelector(".ayto-table-container");
     if (!el) return alert("Keine Matrix gefunden!");
+    if (typeof html2canvas !== "function") {
+      return alert("html2canvas nicht geladen – Export hier nicht verfügbar.");
+    }
     const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#1a1b2b" });
     const a = document.createElement("a");
     a.download = "AYTO-Matrix.png";
@@ -425,151 +431,275 @@ window.addEventListener("DOMContentLoaded", () => {
     a.click();
   }
 
-  async function berechne() {
-    const overlay = document.getElementById("overlay");
-    showOverlay();
-    const bar = overlay?.querySelector(".progress .bar");
-    if (bar) {
-      bar.style.width = "0%";
-      bar.style.transition = "none";
-      requestAnimationFrame(() => { bar.style.transition = "width 0.3s linear"; });
-    }
+  // ---- Hilfen fürs Interface
+  const overlayEl = () => document.getElementById("overlay");
+  const barEl = () => overlayEl()?.querySelector(".progress .bar");
+  const setProgress = (p /* 0..100 */) => { const b = barEl(); if (b) b.style.width = Math.max(0, Math.min(100, p)).toFixed(1) + "%"; };
 
+  // ---- Constraints vorbereiten
+  function buildConstraints() {
     const { A, B } = getT();
     const M = getM();
     const Nraw = getN();
 
+    // Basisprüfungen
     if (A.length < 2 || B.length < 2) {
-      hideOverlay();
-      return alert("Bitte mindestens 2 Teilnehmer pro Gruppe eingeben!");
+      return { ok:false, error:"Bitte mindestens 2 Teilnehmer pro Gruppe anlegen.", A, B };
+    }
+    if (!(A.length === B.length || A.length === B.length + 1)) {
+      return { ok:false, error:`Unterstützt werden A=B oder A=B+1. Aktuell: ${A.length}×${B.length}.`, A, B };
     }
 
-    const N = Nraw.map(n => ({
-      lights: n.lights,
-      pairs: (n.pairs || []).filter(p => p.B && p.A)
-    })).filter(n => n.pairs.length > 0);
+    // Indexe
+    const idxA = Object.fromEntries(A.map((n,i)=>[n,i]));
+    const idxB = Object.fromEntries(B.map((n,i)=>[n,i]));
+    const m = A.length, n = B.length, NONE = n; // NONE = „ohne Partnerin“ (nur intern)
 
-    const PM = M.filter(x => x.type === "PM");
-    const NM = new Set(M.filter(x => x.type === "NM").map(x => `${x.A}-${x.B}`));
+    // Domänen/Regeln
+    const forced = Array(m).fill(-1);
+    const forbidden = Array.from({length:m}, ()=> new Set());
 
-    summary.innerHTML = "<h3>Berechnung läuft...</h3>";
-    matrix.innerHTML = "";
+    // Matchbox
+    for (const t of M) {
+      if (!(t.A in idxA)) continue;
+      const ai = idxA[t.A];
+      if (t.B in idxB) {            // echtes Paar
+        const bj = idxB[t.B];
+        if (t.type === "PM") {
+          if (forced[ai] !== -1 && forced[ai] !== bj) {
+            return { ok:false, error:`Widerspruch in Perfect Matches: ${t.A} × ${t.B}`, A, B };
+          }
+          forced[ai] = bj;
+        } else if (t.type === "NM") {
+          forbidden[ai].add(bj);
+        }
+      } else if (t.type === "NM") {
+        // NM gegen „unbekannt“ ignorieren
+      }
+    }
 
-    const counts = {};
-    A.forEach(a => B.forEach(b => counts[`${a}-${b}`] = 0));
-    let total = 0;
-    let tested = 0;
-    const start = performance.now();
+    // Matching Nights → map[i] = gefixte Frau oder NONE, beams = Lichter
+    const nights = [];
+    for (const nObj of (Array.isArray(Nraw)?Nraw:[])) {
+      const map = Array(m).fill(NONE);
+      let empties = 0;
+      for (const p of (nObj.pairs || [])) {
+        if (!(p.A in idxA)) continue;
+        const i = idxA[p.A];
+        if (p.B && (p.B in idxB)) {
+          map[i] = idxB[p.B];
+        } else {
+          map[i] = NONE; // „keine Partnerin“ gewählt
+          empties++;
+        }
+      }
+      // Validierung pro Night
+      if (A.length === B.length && empties > 0) {
+        return { ok:false, error:"In einer Night (A=B) darf niemand ohne Partnerin sein.", A, B };
+      }
+      if (A.length === B.length + 1 && empties !== 1) {
+        return { ok:false, error:"In einer Night (A=B+1) muss genau eine Person ohne Partnerin sein.", A, B };
+      }
+      nights.push({ map, beams: parseInt(nObj.lights||0,10), NONE });
+    }
 
-    function isValid(assign) {
-      for (const nm of NM)
-        if (assign.some(p => `${p.A}-${p.B}` === nm)) return false;
-      for (const pm of PM)
-        if (!assign.some(p => p.A === pm.A && p.B === pm.B)) return false;
-      for (const n of N) {
-        const correct = n.pairs.filter(p =>
-          assign.some(a => a.A === p.A && a.B === p.B)
-        ).length;
-        if (correct !== n.lights) return false;
+    return { ok:true, A, B, m, n, NONE, forced, forbidden, nights };
+  }
+
+  // ---- Kernsolver: DFS + Pruning (schnell), 20s Timeout & Fortschritt
+  async function berechne() {
+    // UI vorbereiten
+    summaryBox.innerHTML = "<h3>Berechnung läuft…</h3>";
+    logsBox.innerHTML = "";
+    matrixBox.innerHTML = "";
+    matrixBox.style.display = "none";
+    setProgress(0);
+    showOverlay?.();
+
+    const t0 = performance.now();
+    const HARD_TIMEOUT_MS = 20000; // 20s
+    let timedOut = false;
+
+    // Constraints
+    const cons = buildConstraints();
+    if (!cons.ok) {
+      hideOverlay?.();
+      alert(cons.error);
+      return;
+    }
+    const { A, B, m, n, NONE, forced, forbidden, nights } = cons;
+    const allowNone = (m === n + 1);
+
+    // Domänen initialisieren
+    const allWomen = [...Array(n).keys()];
+    const dom = Array.from({length:m}, (_,i)=> new Set(allWomen.filter(j=>!forbidden[i].has(j))));
+    if (allowNone) for (let i=0;i<m;i++) dom[i].add(NONE);
+    for (let i=0;i<m;i++) if (forced[i] !== -1) dom[i] = new Set([forced[i]]);
+
+    // Unlösbar-Prüfung
+    for (let i=0;i<m;i++) {
+      if (dom[i].size === 0) {
+        hideOverlay?.();
+        alert(`Keine Möglichkeit für ${A[i]}.`);
+        return;
+      }
+    }
+
+    // Reihenfolge: kleinste Domäne zuerst
+    const order = [...Array(m).keys()].sort((a,b)=> dom[a].size - dom[b].size);
+
+    // Zählung
+    const usedWoman = new Array(n).fill(false);
+    let usedNone = 0;
+    const assign = Array(m).fill(-1);
+    let total = 0n;
+    const counts = Array.from({length:m}, ()=> Array(n).fill(0n)); // **ohne** NONE-Spalte
+
+    // Hilfsfunktionen: Nights-Pruning
+    function nightBounds(nt) {
+      let fixed = 0, could = 0;
+      for (let i=0;i<m;i++) {
+        const want = nt.map[i]; // feste Frau oder NONE
+        const a = assign[i];
+        if (a !== -1) {
+          if (a !== NONE && a === want) fixed++;
+        } else {
+          if (want !== NONE) {
+            if (!usedWoman[want] && dom[i].has(want)) could++;
+          }
+        }
+      }
+      return [fixed, fixed + could];
+    }
+    function prune() {
+      for (const nt of nights) {
+        const [mn,mx] = nightBounds(nt);
+        if (nt.beams < mn || nt.beams > mx) return false;
+      }
+      return true;
+    }
+    function satisfied() {
+      for (const nt of nights) {
+        let hits = 0;
+        for (let i=0;i<m;i++) {
+          const a = assign[i];
+          if (a !== -1 && a !== NONE && a === nt.map[i]) hits++;
+        }
+        if (hits !== nt.beams) return false;
       }
       return true;
     }
 
-    const totalComb = factorial(Math.max(A.length, B.length));
-    const progressUpdate = () => {
-      const pct = Math.min(100, (tested / totalComb) * 100);
-      if (bar) bar.style.width = pct.toFixed(1) + "%";
-    };
+    // Fortschritt grob schätzen
+    let nodes = 0;
+    function tickProgress() {
+      nodes++;
+      if ((nodes & 0x3FF) === 0) { // alle ~1024 Knoten
+        const elapsed = performance.now() - t0;
+        // weiche Kurve 0..85% + Zeitanteil → reine Heuristik
+        const est = Math.min(85, 100 * (1 - Math.exp(-nodes/40000)));
+        const timeBoost = Math.min(15, (elapsed / HARD_TIMEOUT_MS) * 15);
+        setProgress(est + timeBoost);
+        if (elapsed > HARD_TIMEOUT_MS) timedOut = true;
+      }
+    }
 
-    function factorial(n) { return n <= 1 ? 1 : n * factorial(n - 1); }
-
-    async function asyncDFS(i, used, cur) {
-      if (i === A.length) {
-        tested++;
-        if (isValid(cur)) {
+    function dfs(pos) {
+      if (timedOut) return;
+      if (pos === m) {
+        if (!allowNone || (allowNone && usedNone === 1)) {
+          if (!satisfied()) return;
           total++;
-          cur.forEach(p => counts[`${p.A}-${p.B}`]++);
+          // zählen nur echte Paare A×B (keine NONE)
+          for (let i=0;i<m;i++) {
+            const j = assign[i];
+            if (j >= 0 && j < n) counts[i][j]++;
+          }
         }
-        if (tested % 50 === 0) progressUpdate();
-        if (tested % 500 === 0) await new Promise(r => setTimeout(r, 0));
         return;
       }
-
-      for (let j = 0; j < B.length; j++) {
-        if (used.has(j)) continue;
-        const a = A[i], b = B[j];
-        if (NM.has(`${a}-${b}`)) continue;
-        const pm = PM.find(p => p.A === a);
-        if (pm && pm.B !== b) continue;
-
-        used.add(j);
-        cur.push({ A: a, B: b });
-        await asyncDFS(i + 1, used, cur);
-        cur.pop();
-        used.delete(j);
+      const i = order[pos];
+      for (const j of dom[i]) {
+        tickProgress();
+        if (j === NONE) {
+          if (!allowNone || usedNone === 1) continue;
+          assign[i] = NONE; usedNone++;
+          if (prune()) dfs(pos+1);
+          assign[i] = -1; usedNone--;
+        } else {
+          if (usedWoman[j]) continue;
+          assign[i] = j; usedWoman[j] = true;
+          // Schnellprüfungen: andere Ein-Wert-Domänen dürfen nicht auf dieselbe Frau gezwungen werden
+          let ok = true;
+          for (const k of order) {
+            if (k === i || assign[k] !== -1) continue;
+            if (dom[k].size === 1 && dom[k].has(j)) { ok = false; break; }
+          }
+          if (ok && prune()) dfs(pos+1);
+          assign[i] = -1; usedWoman[j] = false;
+        }
+        if (timedOut) return;
       }
-
-      // bei ungleich vielen A/B -> darf ohne Partnerin bleiben
-      if (A.length > B.length) await asyncDFS(i + 1, used, cur);
     }
 
-    let timeout = false;
-    const timeoutTimer = setTimeout(() => { timeout = true; }, 20000); // 20 Sekunden maximal
-
-    try {
-      await asyncDFS(0, new Set(), []);
-    } catch (err) {
-      hideOverlay();
-      clearTimeout(timeoutTimer);
-      return alert("Fehler in der Berechnung: " + err.message);
-    }
-
-    clearTimeout(timeoutTimer);
-
-    if (timeout) {
-      hideOverlay();
-      summary.innerHTML = `
-        <div class="warning">
-          ⏱️ Berechnung zu umfangreich.<br>
-          Bitte mehr Matchbox- oder Night-Daten eingeben, um die Suche einzugrenzen.
-        </div>`;
+    if (!prune()) {
+      hideOverlay?.();
+      alert("Widerspruch mit den Lichterzahlen der Matching Nights.");
       return;
     }
 
-    progressUpdate();
+    // Start Suche
+    dfs(0);
 
-    const dur = ((performance.now() - start) / 1000).toFixed(2);
-    summary.innerHTML = `
+    // Ergebnis/Timeout
+    setProgress(100);
+    const durMs = Math.round(performance.now() - t0);
+
+    if (timedOut && total === 0n) {
+      hideOverlay?.();
+      alert("Leider noch zu wenig Daten oder sehr große Suche – abgebrochen nach 20 s.");
+      return;
+    }
+
+    // Zusammenfassung
+    summaryBox.innerHTML = `
       <h3>Ergebnis</h3>
       <div>${A.length}×${B.length} Teilnehmer</div>
-      <div>${total} gültige Kombinationen (${tested} geprüft in ${dur}s)</div>
+      <div>${String(total)} gültige Kombinationen (${durMs} ms)</div>
       <button id="exportMatrix" class="primary" style="margin-top:8px">Matrix speichern (PNG)</button>
     `;
     document.getElementById("exportMatrix").onclick = exportMatrix;
 
-    if (!total) {
-      matrix.innerHTML = "<h3>Keine gültige Kombination gefunden!</h3>";
-      hideOverlay();
+    if (total === 0n) {
+      matrixBox.innerHTML = "<h3>Keine gültige Kombination gefunden!</h3>";
+      matrixBox.style.display = "block";
+      hideOverlay?.();
       return;
     }
 
-    let html = `<div class="ayto-table-container"><table class="ayto-table"><tr><th>A\\B</th>${B.map(b => `<th>${b}</th>`).join("")}</tr>`;
-    A.forEach(a => {
-      html += `<tr><td class="a-name">${a}</td>`;
-      B.forEach(b => {
-        let pct = (counts[`${a}-${b}`] / total) * 100;
-        if (PM.some(pm => pm.A === a && pm.B === b)) pct = 100;
-        if (NM.has(`${a}-${b}`)) pct = 0;
-        const hue = pct === 0 ? 0 : pct === 100 ? 120 : pct * 1.2;
-        const bg = `hsl(${hue},75%,${Math.min(25 + pct * 0.3, 55)}%)`;
-        html += `<td style="background:${bg};color:#fff">${pct.toFixed(0)}%</td>`;
-      });
-      html += "</tr>";
-    });
-    html += "</table></div>";
-    matrix.innerHTML = html;
+    // Matrix (ohne „ohne Partnerin“-Spalte!)
+    let html = `
+      <div class="ayto-table-container">
+      <table class="ayto-table" style="width:100%;border-collapse:collapse">
+        <tr><th>A \\ B</th>${B.map(b=>`<th>${b}</th>`).join("")}</tr>
+    `;
+    // Prozentwerte berechnen
+    const toPct = (num) => Number((num * 10000n) / total) / 100; // 2 Nachkommastellen
+    for (let i=0;i<m;i++) {
+      html += `<tr><td class="a-name" style="position:sticky;left:0;background:#23283f;font-weight:600">${A[i]}</td>`;
+      for (let j=0;j<n;j++) {
+        const p = toPct(counts[i][j]);
+        const hue = p === 0 ? 0 : p === 100 ? 120 : p * 1.2;
+        const bg  = `hsl(${hue},75%,${Math.min(25 + p * 0.3, 55)}%)`;
+        html += `<td style="text-align:center;background:${bg};color:#fff">${isNaN(p)?'0.00':p.toFixed(2)}%</td>`;
+      }
+      html += `</tr>`;
+    }
+    html += `</table></div>`;
+    matrixBox.innerHTML = html;
+    matrixBox.style.display = "block";
 
-    hideOverlay();
+    hideOverlay?.();
   }
 
   solveBtn.onclick = berechne;
