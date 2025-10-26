@@ -274,99 +274,155 @@ window.addEventListener("DOMContentLoaded",()=>{
   document.querySelectorAll('nav button[data-target="page-nights"]').forEach(b=>b.addEventListener("click",render));
 });
 
-/* === 📊 Solver mit synchronem Ladebalken === */
-window.addEventListener("DOMContentLoaded",()=>{
-  const solveBtn=document.getElementById("solveBtn"),
-        summary=document.getElementById("summary"),
-        logs=document.getElementById("logs"),
-        matrix=document.getElementById("matrix");
-  if(!solveBtn) return;
+/* === 📊 Solver mit stabiler Eingabeprüfung & korrekten Prozentwerten === */
+window.addEventListener("DOMContentLoaded", () => {
+  const solveBtn = document.getElementById("solveBtn"),
+        summary = document.getElementById("summary"),
+        matrix = document.getElementById("matrix");
 
-  const get=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d;}catch{return d;}};
-  const getT=()=>get("aytoTeilnehmer",{A:[],B:[]});
-  const getM=()=>get("aytoMatchbox",[]);
-  const getN=()=>get("aytoMatchingNights",[]);
+  if (!solveBtn) return;
 
-  async function exportMatrix(){
-    const el=document.querySelector(".ayto-table-container"); if(!el) return alert("Keine Matrix gefunden!");
-    const canvas=await html2canvas(el,{scale:2,backgroundColor:"#1a1b2b"});
-    const a=document.createElement("a"); a.download="AYTO-Matrix.png"; a.href=canvas.toDataURL("image/png"); a.click();
+  const get = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch { return d; } };
+  const getT = () => get("aytoTeilnehmer", { A: [], B: [] });
+  const getM = () => get("aytoMatchbox", []);
+  const getN = () => get("aytoMatchingNights", []);
+
+  async function exportMatrix() {
+    const el = document.querySelector(".ayto-table-container");
+    if (!el) return alert("Keine Matrix gefunden!");
+    const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#1a1b2b" });
+    const a = document.createElement("a");
+    a.download = "AYTO-Matrix.png";
+    a.href = canvas.toDataURL("image/png");
+    a.click();
   }
 
-  async function berechne(){
-    const overlay=document.getElementById("overlay");
-    const progressBar=overlay?.querySelector(".progress .bar");
-    progressBar.style.width="0%";
+  async function berechne() {
+    const overlay = document.getElementById("overlay");
+    const progressBar = overlay?.querySelector(".progress .bar");
+    if (progressBar) progressBar.style.width = "0%";
     showOverlay();
 
-    const {A,B}=getT(), M=getM(), Nraw=getN();
-    if(!A.length||!B.length){hideOverlay();return alert("Bitte zuerst Teilnehmer hinzufügen!");}
-    const N=Nraw.map(n=>({lights:n.lights,pairs:n.pairs.filter(p=>p.B)}));
-    const PM=M.filter(x=>x.type==="PM");
-    const NM=new Set(M.filter(x=>x.type==="NM").map(x=>`${x.A}-${x.B}`));
+    const { A, B } = getT();
+    const M = getM();
+    const Nraw = getN();
 
-    summary.innerHTML="<h3>Berechnung läuft...</h3>";
-    logs.innerHTML=""; matrix.innerHTML="";
-    const counts={}; A.forEach(a=>B.forEach(b=>counts[`${a}-${b}`]=0));
-    let total=0,tested=0;
+    // 🧠 Sicherheitsprüfungen
+    if (A.length < 2 || B.length < 2) {
+      hideOverlay();
+      return alert("Bitte mindestens 2 Teilnehmer pro Gruppe eingeben!");
+    }
 
-    function isValid(assign){
-      for(const nm of NM) if(assign.some(p=>`${p.A}-${p.B}`===nm)) return false;
-      for(const pm of PM) if(assign.some(p=>p.A===pm.A&&p.B!==pm.B)) return false;
-      for(const n of N){const c=n.pairs.filter(p=>assign.some(a=>a.A===p.A&&a.B===p.B)).length;if(c!==n.lights)return false;}
+    const N = Nraw.map(n => ({
+      lights: n.lights,
+      pairs: (n.pairs || []).filter(p => p.B && p.A)
+    })).filter(n => n.pairs.length > 0);
+
+    const PM = M.filter(x => x.type === "PM");
+    const NM = new Set(M.filter(x => x.type === "NM").map(x => `${x.A}-${x.B}`));
+
+    summary.innerHTML = "<h3>Berechnung läuft...</h3>";
+    matrix.innerHTML = "";
+
+    const counts = {};
+    A.forEach(a => B.forEach(b => counts[`${a}-${b}`] = 0));
+    let total = 0, tested = 0;
+
+    const maxIter = Math.pow(Math.min(A.length, B.length), 2) * 2;
+    const updateProgress = (c, m) => {
+      if (!progressBar) return;
+      const pct = Math.min(100, (c / m) * 100);
+      progressBar.style.width = pct.toFixed(1) + "%";
+    };
+
+    const start = performance.now();
+
+    function isValid(assign) {
+      // Keine "No Matches"
+      for (const nm of NM)
+        if (assign.some(p => `${p.A}-${p.B}` === nm)) return false;
+      // Perfect Matches müssen exakt stimmen
+      for (const pm of PM)
+        if (!assign.some(p => p.A === pm.A && p.B === pm.B)) return false;
+      // Nights prüfen
+      for (const n of N) {
+        const correct = n.pairs.filter(p =>
+          assign.some(a => a.A === p.A && a.B === p.B)
+        ).length;
+        if (correct !== n.lights) return false;
+      }
       return true;
     }
 
-    function updateProgress(c,m){
-      if(!progressBar)return;
-      const pct=Math.min(100,(c/m)*100);
-      progressBar.style.width=pct.toFixed(1)+"%";
-    }
-
-    const maxIter=Math.pow(Math.min(A.length,B.length),2)*2;
-    const start=performance.now();
-
-    function dfs(i,used,cur){
+    function dfs(i, used, cur) {
       tested++;
-      if(tested%50===0)updateProgress(tested,maxIter);
-      if(i===A.length){if(isValid(cur)){total++;cur.forEach(p=>counts[`${p.A}-${p.B}`]++);}return;}
-      for(let j=0;j<B.length;j++){
-        if(used.has(j))continue;
-        const a=A[i],b=B[j];
-        if(NM.has(`${a}-${b}`))continue;
-        const pm=PM.find(p=>p.A===a); if(pm&&pm.B!==b)continue;
-        used.add(j);cur.push({A:a,B:b});dfs(i+1,used,cur);cur.pop();used.delete(j);
+      if (tested % 50 === 0) updateProgress(tested, maxIter);
+      if (i === A.length) {
+        if (isValid(cur)) {
+          total++;
+          cur.forEach(p => counts[`${p.A}-${p.B}`]++);
+        }
+        return;
       }
-      if(A.length>B.length)dfs(i+1,used,cur);
+      for (let j = 0; j < B.length; j++) {
+        if (used.has(j)) continue;
+        const a = A[i], b = B[j];
+        if (NM.has(`${a}-${b}`)) continue;
+        const pm = PM.find(p => p.A === a);
+        if (pm && pm.B !== b) continue;
+        used.add(j); cur.push({ A: a, B: b });
+        dfs(i + 1, used, cur);
+        cur.pop(); used.delete(j);
+      }
+      // Wenn mehr A als B → einer bleibt ohne Partnerin
+      if (A.length > B.length) dfs(i + 1, used, cur);
     }
-    dfs(0,new Set(),[]);
-    updateProgress(1,1); hideOverlay();
 
-    const dur=((performance.now()-start)/1000).toFixed(2);
-    summary.innerHTML=`<h3>Ergebnis</h3>
-    <div>${A.length}×${B.length} Teilnehmer</div>
-    <div>${total} gültige Kombinationen (${tested} geprüft, ${dur}s)</div>
-    <button id="exportMatrix" class="primary" style="margin-top:8px">Matrix speichern (PNG)</button>`;
-    document.getElementById("exportMatrix").onclick=exportMatrix;
+    try {
+      dfs(0, new Set(), []);
+    } catch (err) {
+      hideOverlay();
+      return alert("Fehler in der Berechnung: " + err.message);
+    }
 
-    if(!total){matrix.innerHTML="<h3>Keine gültige Kombination gefunden!</h3>";return;}
+    updateProgress(1, 1);
+    const dur = ((performance.now() - start) / 1000).toFixed(2);
 
-    let html=`<div class="ayto-table-container"><table class="ayto-table"><tr><th>A\\B</th>${B.map(b=>`<th>${b}</th>`).join("")}</tr>`;
-    A.forEach(a=>{
-      html+=`<tr><td class="a-name">${a}</td>`;
-      B.forEach(b=>{
-        let pct=(counts[`${a}-${b}`]/total)*100;
-        if(PM.some(pm=>pm.A===a&&pm.B===b))pct=100;
-        if(NM.has(`${a}-${b}`))pct=0;
-        const hue=pct===0?0:pct===100?120:pct*1.2;
-        const bg=`hsl(${hue},75%,${Math.min(25+pct*0.3,55)}%)`;
-        html+=`<td style="background:${bg};color:#fff">${pct.toFixed(0)}%</td>`;
+    // 🧮 Ergebnis anzeigen
+    summary.innerHTML = `
+      <h3>Ergebnis</h3>
+      <div>${A.length}×${B.length} Teilnehmer</div>
+      <div>${total} gültige Kombinationen (${tested} geprüft, ${dur}s)</div>
+      <button id="exportMatrix" class="primary" style="margin-top:8px">Matrix speichern (PNG)</button>
+    `;
+    document.getElementById("exportMatrix").onclick = exportMatrix;
+
+    if (!total) {
+      matrix.innerHTML = "<h3>Keine gültige Kombination gefunden!</h3>";
+      hideOverlay();
+      return;
+    }
+
+    // Matrix-Tabelle erzeugen
+    let html = `<div class="ayto-table-container"><table class="ayto-table"><tr><th>A\\B</th>${B.map(b => `<th>${b}</th>`).join("")}</tr>`;
+    A.forEach(a => {
+      html += `<tr><td class="a-name">${a}</td>`;
+      B.forEach(b => {
+        let pct = (counts[`${a}-${b}`] / total) * 100;
+        // Korrektur: Perfect Matches = 100%, No Matches = 0%
+        if (PM.some(pm => pm.A === a && pm.B === b)) pct = 100;
+        if (NM.has(`${a}-${b}`)) pct = 0;
+        const hue = pct === 0 ? 0 : pct === 100 ? 120 : pct * 1.2;
+        const bg = `hsl(${hue},75%,${Math.min(25 + pct * 0.3, 55)}%)`;
+        html += `<td style="background:${bg};color:#fff">${pct.toFixed(0)}%</td>`;
       });
-      html+="</tr>";
+      html += "</tr>";
     });
-    html+="</table></div>";
-    matrix.innerHTML=html;
+    html += "</table></div>";
+    matrix.innerHTML = html;
+
+    hideOverlay();
   }
 
-  solveBtn.onclick=berechne;
+  solveBtn.onclick = berechne;
 });
