@@ -503,7 +503,7 @@ window.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", renderTimeline);
   });
 });
-// === 🧮 Vollständiger AYTO-Solver (mit ungleichen Teilnehmerzahlen & Matrix-Export) ===
+// === 🧮 AYTO-Solver (mit ungleichen Gruppen, ohne „ohne Partnerin“) ===
 window.addEventListener("DOMContentLoaded", () => {
   const solveBtn = document.getElementById("solveBtn");
   const summaryBox = document.getElementById("summary");
@@ -512,7 +512,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   if (!solveBtn) return;
 
-  // --- Helferfunktionen ---
+  // --- Hilfsfunktionen ---
   function getTeilnehmer() {
     try { return JSON.parse(localStorage.getItem("aytoTeilnehmer")) || { A: [], B: [] }; }
     catch { return { A: [], B: [] }; }
@@ -526,7 +526,7 @@ window.addEventListener("DOMContentLoaded", () => {
     catch { return []; }
   }
 
-  // --- Screenshot-Export ---
+  // --- Matrix als PNG exportieren ---
   async function exportMatrix() {
     const el = document.querySelector(".ayto-table-container");
     if (!el) {
@@ -564,10 +564,10 @@ window.addEventListener("DOMContentLoaded", () => {
 
     const diff = Math.abs(A.length - B.length);
     if (diff > 0) {
-      logsBox.innerHTML += `<div class="warning">⚠ Ungleichgewicht: ${A.length}×${B.length}. Es bleibt ${diff} Person(en) ohne Partner.</div>`;
+      logsBox.innerHTML += `<div class="warning">⚠ Ungleichgewicht: ${A.length}×${B.length} – ${diff} Person(en) bleibt pro Kombination unberücksichtigt (rotierend).</div>`;
     }
 
-    // Permutationsgenerator
+    // --- Generatoren ---
     function* permute(arr) {
       if (arr.length <= 1) yield arr;
       else for (let i = 0; i < arr.length; i++) {
@@ -576,13 +576,27 @@ window.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // Prüft, ob eine Zuordnung gültig ist
-    function isValid(assign) {
-      for (const nm of noMatches) if (assign.some(p => `${p.A}-${p.B}` === nm)) return false;
-      for (const pm of perfectMatches) if (assign.some(p => p.A === pm.A && p.B !== pm.B)) return false;
+    function* chooseIdx(n, k, start = 0, chosen = []) {
+      if (chosen.length === k) {
+        yield chosen.slice();
+        return;
+      }
+      for (let i = start; i < n; i++) {
+        chosen.push(i);
+        yield* chooseIdx(n, k, i + 1, chosen);
+        chosen.pop();
+      }
+    }
 
+    function isValid(assign) {
+      for (const nm of noMatches)
+        if (assign.some(p => `${p.A}-${p.B}` === nm)) return false;
+      for (const pm of perfectMatches)
+        if (assign.some(p => p.A === pm.A && p.B !== pm.B)) return false;
       for (const n of nights) {
-        const correct = n.pairs.filter(p => assign.some(a => a.A === p.A && a.B === p.B)).length;
+        const correct = n.pairs.filter(p =>
+          assign.some(a => a.A === p.A && a.B === p.B)
+        ).length;
         if (correct !== n.lights) return false;
       }
       return true;
@@ -593,16 +607,17 @@ window.addEventListener("DOMContentLoaded", () => {
     let tested = 0;
 
     if (A.length === B.length) {
-      // Normalfall
+      // Gleiche Anzahl
       for (const perm of permute(B)) {
         tested++;
         const assign = A.map((a, i) => ({ A: a, B: perm[i] }));
         if (isValid(assign)) validAssignments.push(assign);
       }
     } else if (A.length > B.length) {
-      // Mehr Männer → einer bleibt übrig
-      for (let skip = 0; skip < A.length; skip++) {
-        const A_used = A.filter((_, i) => i !== skip);
+      // Mehr Männer → jede Kombination aus B vielen Männern prüfen
+      const skipCount = A.length - B.length;
+      for (const skipIdx of chooseIdx(A.length, skipCount)) {
+        const A_used = A.filter((_, i) => !skipIdx.includes(i));
         for (const perm of permute(B)) {
           tested++;
           const assign = A_used.map((a, i) => ({ A: a, B: perm[i] }));
@@ -610,9 +625,10 @@ window.addEventListener("DOMContentLoaded", () => {
         }
       }
     } else {
-      // Mehr Frauen → eine bleibt übrig
-      for (let skip = 0; skip < B.length; skip++) {
-        const B_used = B.filter((_, i) => i !== skip);
+      // Mehr Frauen → jede Kombination aus A vielen Frauen prüfen
+      const skipCount = B.length - A.length;
+      for (const skipIdx of chooseIdx(B.length, skipCount)) {
+        const B_used = B.filter((_, i) => !skipIdx.includes(i));
         for (const perm of permute(B_used)) {
           tested++;
           const assign = A.map((a, i) => ({ A: a, B: perm[i] }));
@@ -628,7 +644,6 @@ window.addEventListener("DOMContentLoaded", () => {
       <div>${validAssignments.length} gültige Kombination(en) aus ${tested} geprüft</div>
       <button id="exportMatrix" class="primary" style="margin-top:8px">Matrix speichern (PNG)</button>
     `;
-
     document.getElementById("exportMatrix").onclick = exportMatrix;
 
     if (validAssignments.length === 0) {
@@ -639,73 +654,74 @@ window.addEventListener("DOMContentLoaded", () => {
     // --- Häufigkeiten zählen ---
     const counts = {};
     A.forEach(a => B.forEach(b => counts[`${a}-${b}`] = 0));
+
     validAssignments.forEach(assign =>
       assign.forEach(p => counts[`${p.A}-${p.B}`]++)
     );
 
-    // --- Matrix erzeugen ---
+    // --- Matrix anzeigen ---
     let table = `
-    <style>
-      .ayto-table-container {
-        overflow-x:auto;
-        margin-top:10px;
-        border-radius:10px;
-        box-shadow:0 0 12px rgba(0,0,0,0.3);
-      }
-      .ayto-table {
-        width:100%;
-        border-collapse:collapse;
-        background:rgba(25,27,45,0.9);
-        font-size:13px;
-      }
-      .ayto-table th, .ayto-table td {
-        padding:6px 8px;
-        text-align:center;
-        border:1px solid rgba(255,255,255,0.05);
-        white-space:nowrap;
-      }
-      .ayto-table th {
-        background:rgba(35,38,60,0.95);
-        color:#eee;
-        font-weight:600;
-        position:sticky;
-        top:0;
-        z-index:2;
-      }
-      .ayto-table .a-name {
-        background:rgba(35,38,60,0.9);
-        text-align:left;
-        font-weight:600;
-        color:#ddd;
-        position:sticky;
-        left:0;
-        z-index:3;
-      }
-      .ayto-tooltip {
-        visibility:hidden;
-        position:absolute;
-        background:rgba(0,0,0,0.85);
-        color:#fff;
-        text-align:center;
-        border-radius:6px;
-        padding:3px 6px;
-        font-size:12px;
-        bottom:120%;
-        left:50%;
-        transform:translateX(-50%);
-        opacity:0;
-        transition:opacity 0.3s;
-        pointer-events:none;
-        white-space:nowrap;
-      }
-      .ayto-table td:hover .ayto-tooltip {
-        visibility:visible;
-        opacity:1;
-      }
-    </style>
-    <div class="ayto-table-container">
-    <table class="ayto-table">
-      <tr><th>A \\ B</th>${B.map(b => `<th>${b}</th>`).join("")}</tr>
+      <style>
+        .ayto-table-container {
+          overflow-x:auto;
+          margin-top:10px;
+          border-radius:10px;
+          box-shadow:0 0 12px rgba(0,0,0,0.3);
+        }
+        .ayto-table {
+          width:100%;
+          border-collapse:collapse;
+          background:rgba(25,27,45,0.9);
+          font-size:13px;
+        }
+        .ayto-table th, .ayto-table td {
+          padding:6px 8px;
+          text-align:center;
+          border:1px solid rgba(255,255,255,0.05);
+          white-space:nowrap;
+        }
+        .ayto-table th {
+          background:rgba(35,38,60,0.95);
+          color:#eee;
+          font-weight:600;
+          position:sticky;
+          top:0;
+          z-index:2;
+        }
+        .ayto-table .a-name {
+          background:rgba(35,38,60,0.9);
+          text-align:left;
+          font-weight:600;
+          color:#ddd;
+          position:sticky;
+          left:0;
+          z-index:3;
+        }
+        .ayto-tooltip {
+          visibility:hidden;
+          position:absolute;
+          background:rgba(0,0,0,0.85);
+          color:#fff;
+          text-align:center;
+          border-radius:6px;
+          padding:3px 6px;
+          font-size:12px;
+          bottom:120%;
+          left:50%;
+          transform:translateX(-50%);
+          opacity:0;
+          transition:opacity 0.3s;
+          pointer-events:none;
+          white-space:nowrap;
+        }
+        .ayto-table td:hover .ayto-tooltip {
+          visibility:visible;
+          opacity:1;
+        }
+      </style>
+      <div class="ayto-table-container">
+      <table class="ayto-table">
+        <tr><th>A \\ B</th>${B.map(b => `<th>${b}</th>`).join("")}</tr>
     `;
 
     A.forEach(a => {
