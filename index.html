@@ -1,141 +1,86 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#346FFF" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="AYTO Solver 2025" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#346FFF">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AYTO Solver 2025">
   <title>AYTO Solver 2025</title>
-
-  <!-- Manifest & PWA -->
-  <link rel="manifest" href="/Ayto/manifest.json" />
-  <link rel="apple-touch-icon" href="/Ayto/icons/icon-192.png" />
-  <link rel="stylesheet" href="/Ayto/style.css" />
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
   <header>
-    <img class="logo" src="/Ayto/icons/ayto-logo.jpg" alt="AYTO Logo" />
+    <img src="ayto-logo.jpg" alt="AYTO Logo" class="logo">
     <h1>AYTO Solver 2025</h1>
-    <div class="small">Installierbare PWA • Offline nutzbar • /Ayto/</div>
+    <div class="muted small">Offline nutzbar • Installierbar • v2025</div>
   </header>
 
   <main>
-    <!-- Teilnehmer -->
-    <section id="page-teilnehmer" class="page active">
-      <div class="card stack">
-        <h2>👥 Teilnehmer</h2>
-        <div class="row">
-          <button id="prefill" class="ghost">🔁 Staffel 2025 vorbelegen (11 A / 10 B)</button>
-          <button id="addA" class="ghost">+ A-Person</button>
-          <button id="addB" class="ghost">+ B-Person</button>
-        </div>
-        <div class="row">
-          <div class="stack" style="flex:1">
-            <label>Gruppe A</label>
-            <div id="listA" class="list"></div>
-          </div>
-          <div class="stack" style="flex:1">
-            <label>Gruppe B</label>
-            <div id="listB" class="list"></div>
-          </div>
-        </div>
-        <div id="warnBalance" class="warning small" style="display:none"></div>
+    <section id="setup">
+      <h2>1) Teilnehmer</h2>
+      <div class="row">
+        <button id="prefill" class="ghost">📋 Staffel 2025 vorbelegen (11 A / 10 B)</button>
+        <button id="addA" class="ghost">+ A-Person</button>
+        <button id="addB" class="ghost">+ B-Person</button>
       </div>
-    </section>
-
-    <!-- Matchbox -->
-    <section id="page-matchbox" class="page">
-      <div class="card stack">
-        <h2>💞 Matchbox</h2>
-        <div class="row">
-          <select id="tbA"></select>
-          <span>×</span>
-          <select id="tbB"></select>
-          <select id="tbType">
-            <option value="PM">Perfect Match</option>
-            <option value="NM">No Match</option>
-            <option value="SOLD">Sold (nur markieren)</option>
-          </select>
-          <button id="addTB">Hinzufügen</button>
+      <div class="row">
+        <div class="stack" style="flex:1">
+          <label>Gruppe A</label>
+          <div id="listA" class="list"></div>
         </div>
-        <div id="tbList" class="list" style="margin-top:6px"></div>
+        <div class="stack" style="flex:1">
+          <label>Gruppe B</label>
+          <div id="listB" class="list"></div>
+        </div>
       </div>
-    </section>
+      <div id="warnBalance" class="warning small" style="display:none"></div>
 
-    <!-- Matching Nights -->
-    <section id="page-entscheidungen" class="page">
-      <div class="card stack">
-        <h2>🌙 Matchingnight</h2>
-        <div class="small muted">
-          Bei 11×10 muss genau <b>eine</b> A-Person ohne Partnerin bleiben.
-        </div>
-        <div class="row">
-          <button id="addNight" class="ghost">+ Night anlegen</button>
-        </div>
-        <div id="nights" class="list" style="margin-top:6px"></div>
-
-        <div class="row" style="margin-top:8px">
-          <button id="exportBtn">Export</button>
-          <input type="file" id="importFile" style="display:none" />
-          <button id="importBtn">Import</button>
-          <button id="resetBtn" class="danger">Zurücksetzen</button>
-        </div>
-        <div id="err" class="small"></div>
+      <h2>2) Matchbox</h2>
+      <div class="row">
+        <select id="tbA"></select><span>×</span><select id="tbB"></select>
+        <select id="tbType">
+          <option value="PM">Perfect Match</option>
+          <option value="NM">No Match</option>
+          <option value="SOLD">Sold (nur markieren)</option>
+        </select>
+        <button id="addTB">Hinzufügen</button>
       </div>
-    </section>
+      <div id="tbList" class="list"></div>
 
-    <!-- Timeline -->
-    <section id="page-nights" class="page">
-      <div class="card stack">
-        <h2>🕒 Timeline</h2>
-        <div class="timeline" id="timelineBox"></div>
-      </div>
-    </section>
+      <h2>3) Matching Night</h2>
+      <div class="small muted">Bei 11×10 muss genau <b>eine</b> A-Person ohne Partnerin bleiben.</div>
+      <button id="addNight" class="ghost">🌙 Night anlegen</button>
+      <div id="nights" class="list"></div>
 
-    <!-- Ergebnisse -->
-    <section id="page-ergebnisse" class="page">
-      <div class="card stack">
-        <h2>📊 Ergebnisse</h2>
-        <div class="row">
-          <button id="solveBtn" class="primary">Berechnen</button>
-          <span id="status" class="pill">Bereit</span>
-        </div>
-        <div id="summary" class="stack" style="margin-top:8px"></div>
-        <div id="matrix" class="table-wrap" style="margin-top:10px;display:none"></div>
-        <div id="logs" class="stack" style="margin-top:10px"></div>
+      <h2>4) Ergebnis</h2>
+      <div class="row">
+        <button id="solveBtn" class="primary">🔮 Berechnen</button>
+        <span id="status" class="pill">Bereit</span>
       </div>
+      <div id="summary" class="stack"></div>
+      <div id="matrix" class="matrix" style="display:none"></div>
+      <div id="logs" class="stack"></div>
+      <div id="err" class="small"></div>
     </section>
   </main>
 
-  <!-- Bottom Navigation -->
-  <nav class="bottom-nav" id="nav">
-    <button class="active" data-target="page-teilnehmer"><span class="icon">👥</span>Teilnehmer</button>
-    <button data-target="page-matchbox"><span class="icon">💞</span>Matchbox</button>
-    <button data-target="page-entscheidungen"><span class="icon">🌙</span>Matchingnight</button>
-    <button data-target="page-nights"><span class="icon">🕒</span>Nights</button>
-    <button data-target="page-ergebnisse"><span class="icon">📊</span>Ergebnisse</button>
-  </nav>
-
-  <!-- Overlay (Animation beim Berechnen) -->
   <div id="overlay">
     <div class="overlay-box">
-      <img class="overlay-logo" src="/Ayto/icons/ayto-logo.jpg" alt="AYTO Logo" />
-      <h3 class="overlay-title">Berechnung läuft...</h3>
+      <img src="ayto-logo.jpg" alt="AYTO Logo" class="overlay-logo">
+      <h3>Berechnung läuft...</h3>
       <div class="progress"><div class="bar"></div></div>
     </div>
   </div>
 
-  <!-- Skripte -->
-  <script src="/Ayto/app.js" defer></script>
+  <script src="app.js"></script>
   <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", function () {
-        navigator.serviceWorker.register("/Ayto/service-worker.js");
-      });
-    }
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js');
+  }
   </script>
 </body>
 </html>
