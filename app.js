@@ -506,147 +506,139 @@ window.addEventListener("DOMContentLoaded", () => {
     return { ok:true, A,B,m,n,NONE,forced,forbidden,nights };
   }
 
-// === Solver ===
-async function solve() {
-  const overlay = document.getElementById('overlay');
-  const progressBar = overlay?.querySelector('.bar');
-  const progressText = overlay?.querySelector('.overlay-title');
-  const summary = document.getElementById('summary');
-  const matrix = document.getElementById('matrix');
-  const logs = document.getElementById('logs');
-  const status = document.getElementById('status');
+  // === Solver ===
+  async function berechne() {
+    summaryBox.innerHTML = "<h3>Berechnung läuft…</h3>";
+    logsBox.innerHTML = "";
+    matrixBox.innerHTML = "";
+    matrixBox.style.display = "none";
+    setProgress(0);
+    showOverlay?.();
 
-  summary.innerHTML = '';
-  matrix.innerHTML = '';
-  logs.innerHTML = '';
-  status.textContent = 'Berechnung läuft...';
+    const t0 = performance.now();
+    const HARD_TIMEOUT_MS = 20000;
+    let timedOut = false;
 
-  overlay?.classList.add('show');
-  if (progressBar) progressBar.style.width = '0%';
-  if (progressText) progressText.textContent = 'Berechnung läuft... (0%)';
+    const cons = buildConstraints();
+    if (!cons.ok) { hideOverlay?.(); alert(cons.error); return; }
 
-  const startTime = performance.now();
-  let progress = 0;
-  let total = 0n;
-  let tested = 0;
-  const MIN_OVERLAY_TIME = 5000; // mind. 5 s sichtbar
+    const { A,B,m,n,NONE,forced,forbidden,nights } = cons;
+    const allowNone = (m === n + 1);
+    const allWomen = [...Array(n).keys()];
+    const dom = Array.from({length:m},(_,i)=> new Set(allWomen.filter(j=>!forbidden[i].has(j))));
+    if (allowNone) for (let i=0;i<m;i++) dom[i].add(NONE);
+    for (let i=0;i<m;i++) if (forced[i]!==-1) dom[i]=new Set([forced[i]]);
+    for (let i=0;i<m;i++) if (dom[i].size===0){ hideOverlay?.(); alert(`Keine Möglichkeit für ${A[i]}.`); return; }
 
-  // ---- Teilnehmer & Daten ----
-  const { A, B } = JSON.parse(localStorage.getItem("aytoTeilnehmer") || '{"A":[],"B":[]}');
-  const M = JSON.parse(localStorage.getItem("aytoMatchbox") || "[]");
-  const Nraw = JSON.parse(localStorage.getItem("aytoMatchingNights") || "[]");
+    const order=[...Array(m).keys()].sort((a,b)=> dom[a].size-dom[b].size);
+    const usedWoman=new Array(n).fill(false);
+    let usedNone=0;
+    const assign=Array(m).fill(-1);
+    let total=0n;
+    const counts=Array.from({length:m},()=>Array(n).fill(0n));
 
-  if (A.length < 2 || B.length < 2) {
-    overlay?.classList.remove('show');
-    alert("Bitte zuerst Teilnehmer hinzufügen!");
-    return;
-  }
-
-  const PM = M.filter(x => x.type === "PM");
-  const NM = new Set(M.filter(x => x.type === "NM").map(x => `${x.A}-${x.B}`));
-  const N = Nraw.map(n => ({
-    lights: n.lights,
-    pairs: (n.pairs || []).filter(p => p.A && p.B)
-  })).filter(n => n.pairs.length > 0);
-
-  const counts = {};
-  A.forEach(a => B.forEach(b => counts[`${a}-${b}`] = 0));
-  const NONE_ALLOWED = A.length === B.length + 1;
-
-  const maxSteps = Math.pow(Math.min(A.length, B.length), 2) * 4;
-
-  // ---- Prüffunktionen ----
-  function isValid(assign) {
-    for (const nm of NM)
-      if (assign.some(p => `${p.A}-${p.B}` === nm)) return false;
-
-    for (const pm of PM)
-      if (!assign.some(p => p.A === pm.A && p.B === pm.B)) return false;
-
-    for (const n of N) {
-      const correct = n.pairs.filter(p =>
-        assign.some(a => a.A === p.A && a.B === p.B)
-      ).length;
-      if (correct !== n.lights) return false;
-    }
-    return true;
-  }
-
-  // ---- Rekursive Suche ----
-  function dfs(i, used, cur) {
-    if (i === A.length) {
-      tested++;
-      if (isValid(cur)) {
-        total++;
-        cur.forEach(p => counts[`${p.A}-${p.B}`]++);
+    function nightBounds(nt){
+      let fixed=0,could=0;
+      for(let i=0;i<m;i++){
+        const want=nt.map[i], a=assign[i];
+        if(a!==-1){ if(a!==NONE && a===want) fixed++; }
+        else if(want!==NONE && !usedWoman[want] && dom[i].has(want)) could++;
       }
-      return;
+      return [fixed,fixed+could];
     }
-    for (let j = 0; j < B.length; j++) {
-      if (used.has(j)) continue;
-      const a = A[i], b = B[j];
-      if (NM.has(`${a}-${b}`)) continue;
-      const pm = PM.find(p => p.A === a);
-      if (pm && pm.B !== b) continue;
-      used.add(j);
-      cur.push({ A: a, B: b });
-      dfs(i + 1, used, cur);
-      cur.pop();
-      used.delete(j);
+    function prune(){
+      for(const nt of nights){ const [mn,mx]=nightBounds(nt); if(nt.beams<mn||nt.beams>mx) return false; }
+      return true;
     }
-    if (NONE_ALLOWED) dfs(i + 1, used, cur);
+    function satisfied(){
+      for(const nt of nights){
+        let hits=0;
+        for(let i=0;i<m;i++){ const a=assign[i]; if(a!==-1&&a!==NONE&&a===nt.map[i]) hits++; }
+        if(hits!==nt.beams) return false;
+      }
+      return true;
+    }
+
+    let nodes=0;
+    function tickProgress(){
+      nodes++;
+      if((nodes&0x3FF)===0){
+        const elapsed=performance.now()-t0;
+        const est=Math.min(85,100*(1-Math.exp(-nodes/40000)));
+        const boost=Math.min(15,(elapsed/HARD_TIMEOUT_MS)*15);
+        setProgress(est+boost);
+        if(elapsed>HARD_TIMEOUT_MS) timedOut=true;
+      }
+    }
+
+    function dfs(pos){
+      if(timedOut) return;
+      if(pos===m){
+        if(!allowNone||(allowNone&&usedNone===1)){
+          if(!satisfied()) return;
+          total++;
+          for(let i=0;i<m;i++){ const j=assign[i]; if(j>=0&&j<n) counts[i][j]++; }
+        }
+        return;
+      }
+      const i=order[pos];
+      for(const j of dom[i]){
+        tickProgress();
+        if(j===NONE){
+          if(!allowNone||usedNone===1) continue;
+          assign[i]=NONE; usedNone++;
+          if(prune()) dfs(pos+1);
+          assign[i]=-1; usedNone--;
+        } else {
+          if(usedWoman[j]) continue;
+          assign[i]=j; usedWoman[j]=true;
+          let ok=true;
+          for(const k of order){ if(k===i||assign[k]!==-1) continue; if(dom[k].size===1&&dom[k].has(j)){ ok=false; break; } }
+          if(ok&&prune()) dfs(pos+1);
+          assign[i]=-1; usedWoman[j]=false;
+        }
+        if(timedOut) return;
+      }
+    }
+
+    if(!prune()){ hideOverlay?.(); alert("Widerspruch mit den Lichterzahlen."); return; }
+    dfs(0);
+    setProgress(100);
+    const dur=Math.round(performance.now()-t0);
+
+    if(timedOut && total===0n){ hideOverlay?.(); alert("Leider noch zu wenig Daten oder zu komplex – abgebrochen nach 20 s."); return; }
+
+    summaryBox.innerHTML=`
+      <h3>Ergebnis</h3>
+      <div>${A.length}×${B.length} Teilnehmer</div>
+      <div>${String(total)} gültige Kombinationen (${dur} ms)</div>
+      <button id="exportMatrix" class="primary" style="margin-top:8px">Matrix speichern (PNG)</button>
+    `;
+    document.getElementById("exportMatrix").onclick = exportMatrix;
+
+    if(total===0n){
+      matrixBox.innerHTML="<h3>Keine gültige Kombination gefunden!</h3>";
+      matrixBox.style.display="block";
+      hideOverlay?.(); return;
+    }
+
+    const toPct=(x)=>Number((x*10000n)/total)/100;
+    let html=`<div class="ayto-table-container"><table class="ayto-table"><tr><th>A\\B</th>${B.map(b=>`<th>${b}</th>`).join("")}</tr>`;
+    for(let i=0;i<m;i++){
+      html+=`<tr><td style="position:sticky;left:0;background:#23283f;font-weight:600">${A[i]}</td>`;
+      for(let j=0;j<n;j++){
+        const p=toPct(counts[i][j]);
+        const hue=p===0?0:p===100?120:p*1.2;
+        const bg=`hsl(${hue},75%,${Math.min(25+p*0.3,55)}%)`;
+        html+=`<td style="text-align:center;background:${bg};color:#fff">${isNaN(p)?'0.00':p.toFixed(2)}%</td>`;
+      }
+      html+="</tr>";
+    }
+    html+="</table></div>";
+    matrixBox.innerHTML=html;
+    matrixBox.style.display="block";
+    hideOverlay?.();
   }
 
-  // ---- Fortschrittssimulation ----
-  const fakeProgress = setInterval(() => {
-    progress = Math.min(progress + 3, 90);
-    if (progressBar) progressBar.style.width = progress + '%';
-    if (progressText) progressText.textContent = `Berechnung läuft... (${progress}%)`;
-  }, 250);
-
-  // ---- Berechnung starten ----
-  dfs(0, new Set(), []);
-  clearInterval(fakeProgress);
-  if (progressBar) progressBar.style.width = '100%';
-  if (progressText) progressText.textContent = 'Berechnung abgeschlossen (100%)';
-
-  const elapsed = performance.now() - startTime;
-  const remaining = Math.max(0, MIN_OVERLAY_TIME - elapsed);
-  await new Promise(r => setTimeout(r, remaining));
-  overlay?.classList.remove('show');
-
-  // ---- Ergebnisse ----
-  if (!total) {
-    matrix.innerHTML = "<h3>Keine gültige Kombination gefunden!</h3>";
-    status.textContent = "Keine Lösung";
-    return;
-  }
-
-  status.textContent = "Fertig";
-  summary.innerHTML = `
-    <h3>Ergebnis</h3>
-    <div>${A.length}×${B.length} Teilnehmer</div>
-    <div>${total} gültige Kombinationen (${tested} geprüft)</div>
-  `;
-
-  let html = `<div class="ayto-table-container"><table class="ayto-table"><tr><th>A\\B</th>${B.map(b => `<th>${b}</th>`).join("")}</tr>`;
-  A.forEach(a => {
-    html += `<tr><td><b>${a}</b></td>`;
-    B.forEach(b => {
-      let pct = Number(counts[`${a}-${b}`] * 100n / total);
-      if (PM.some(pm => pm.A === a && pm.B === b)) pct = 100;
-      if (NM.has(`${a}-${b}`)) pct = 0;
-      const hue = pct === 0 ? 0 : pct === 100 ? 120 : pct * 1.2;
-      const bg = `hsl(${hue},75%,${Math.min(25 + pct * 0.3, 55)}%)`;
-      html += `<td style="text-align:center;background:${bg};color:#fff">${pct.toFixed(0)}%</td>`;
-    });
-    html += "</tr>";
-  });
-  html += "</table></div>";
-
-  matrix.innerHTML = html;
-  matrix.style.display = "block";
-}
-
-solveBtn.onclick = solve;
+  solveBtn.onclick = berechne;
 });
