@@ -27,6 +27,55 @@ function hideOverlay(){
   if(ov) ov.classList.remove('show');
 }
 
+/* === Staffel 2025 Vorbelegen (robust, unabhängig von anderen DOMContentLoaded-Blöcken) === */
+document.addEventListener("DOMContentLoaded", () => {
+  const prefillBtn = document.getElementById("prefill");
+  const listA = document.getElementById("listA");
+  const listB = document.getElementById("listB");
+
+  if (!prefillBtn || !listA || !listB) return;
+
+  prefillBtn.addEventListener("click", () => {
+    const A = [
+      "Calvin.O", "Calvin.S", "Jonny", "Kevin", "Leandro",
+      "Lennert", "Nico", "Oliver", "Rob", "Sidar", "Xander"
+    ];
+    const B = [
+      "Antonia", "Ariel", "Beverly", "Elly", "Hati",
+      "Henna", "Joanna", "Nelly", "Sandra", "Viki"
+    ];
+
+    listA.innerHTML = "";
+    listB.innerHTML = "";
+
+    A.forEach(name => {
+      const div = document.createElement("div");
+      div.className = "row";
+      div.innerHTML = `
+        <input type="text" value="${name}" placeholder="Name (A)" style="flex:1">
+        <button class="danger small">✖</button>`;
+      div.querySelector("button").addEventListener("click", () => div.remove());
+      listA.appendChild(div);
+    });
+
+    B.forEach(name => {
+      const div = document.createElement("div");
+      div.className = "row";
+      div.innerHTML = `
+        <input type="text" value="${name}" placeholder="Name (B)" style="flex:1">
+        <button class="danger small">✖</button>`;
+      div.querySelector("button").addEventListener("click", () => div.remove());
+      listB.appendChild(div);
+    });
+
+    localStorage.setItem("aytoTeilnehmer", JSON.stringify({ A, B }));
+
+    prefillBtn.textContent = "✅ Staffel 2025 geladen";
+    prefillBtn.disabled = true;
+
+    alert("Staffel 2025 wurde erfolgreich geladen!");
+  });
+});
 /* === 👥 Teilnehmer-Verwaltung === */
 window.addEventListener("DOMContentLoaded", () => {
   const listA = document.getElementById("listA");
@@ -93,56 +142,7 @@ window.addEventListener("DOMContentLoaded", () => {
   addA.addEventListener("click",()=>createPerson(`A${listA.children.length+1}`,"A"));
   addB.addEventListener("click",()=>createPerson(`B${listB.children.length+1}`,"B"));
 
-/* === Staffel 2025 Vorbelegen (robust, unabhängig von anderen DOMContentLoaded-Blöcken) === */
-document.addEventListener("DOMContentLoaded", () => {
-  const prefillBtn = document.getElementById("prefill");
-  const listA = document.getElementById("listA");
-  const listB = document.getElementById("listB");
 
-  if (!prefillBtn || !listA || !listB) return;
-
-  prefillBtn.addEventListener("click", () => {
-    const A = [
-      "Calvin.O", "Calvin.S", "Jonny", "Kevin", "Leandro",
-      "Lennert", "Nico", "Oliver", "Rob", "Sidar", "Xander"
-    ];
-    const B = [
-      "Antonia", "Ariel", "Beverly", "Elly", "Hati",
-      "Henna", "Joanna", "Nelly", "Sandra", "Viki"
-    ];
-
-    listA.innerHTML = "";
-    listB.innerHTML = "";
-
-    A.forEach(name => {
-      const div = document.createElement("div");
-      div.className = "row";
-      div.innerHTML = `
-        <input type="text" value="${name}" placeholder="Name (A)" style="flex:1">
-        <button class="danger small">✖</button>`;
-      div.querySelector("button").addEventListener("click", () => div.remove());
-      listA.appendChild(div);
-    });
-
-    B.forEach(name => {
-      const div = document.createElement("div");
-      div.className = "row";
-      div.innerHTML = `
-        <input type="text" value="${name}" placeholder="Name (B)" style="flex:1">
-        <button class="danger small">✖</button>`;
-      div.querySelector("button").addEventListener("click", () => div.remove());
-      listB.appendChild(div);
-    });
-
-    // in localStorage speichern
-    localStorage.setItem("aytoTeilnehmer", JSON.stringify({ A, B }));
-
-    // Hinweis anzeigen
-    prefillBtn.textContent = "✅ Staffel 2025 geladen";
-    prefillBtn.disabled = true;
-
-    alert("Staffel 2025 wurde erfolgreich geladen!");
-  });
 });/* === 💞 Matchbox === */
 window.addEventListener("DOMContentLoaded",()=>{
   const tbA=document.getElementById("tbA"),
