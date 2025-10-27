@@ -15,11 +15,26 @@ h1, h2, h3 {
   color: #ffffff;
 }
 
+/* === Header mit Farbverlauf von Pink → Blau === */
 header {
   text-align: center;
   padding: 12px 8px;
-  background: linear-gradient(90deg, #1e2250, #121530);
+  background: linear-gradient(90deg, #ff4fa8 0%, #4a82ff 100%);
   border-bottom: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+/* Logo bleibt mittig, leicht betont */
+header img.logo {
+  width: 90px;
+  display: block;
+  margin: 0 auto 6px;
+}
+
+/* Untertitel dezenter */
+header .small {
+  font-size: 12px;
+  color: rgba(255,255,255,0.8);
 }
 header img.logo {
   width: 90px;
