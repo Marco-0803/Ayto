@@ -27,13 +27,16 @@ function hideOverlay(){
   if(ov) ov.classList.remove('show');
 }
 
-/* === Staffel 2025 Vorbelegen (robust, unabhängig von anderen DOMContentLoaded-Blöcken) === */
-document.addEventListener("DOMContentLoaded", () => {
+/* === Staffel 2025 Vorbelegen (funktioniert sicher, auch mit Navigation) === */
+function initPrefill() {
   const prefillBtn = document.getElementById("prefill");
   const listA = document.getElementById("listA");
   const listB = document.getElementById("listB");
+  if (!prefillBtn || !listA || !listB) return; // Elemente noch nicht da
 
-  if (!prefillBtn || !listA || !listB) return;
+  // Falls bereits verbunden, nicht doppelt hinzufügen
+  if (prefillBtn.dataset.bound) return;
+  prefillBtn.dataset.bound = "true";
 
   prefillBtn.addEventListener("click", () => {
     const A = [
@@ -69,11 +72,21 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     localStorage.setItem("aytoTeilnehmer", JSON.stringify({ A, B }));
-
     prefillBtn.textContent = "✅ Staffel 2025 geladen";
     prefillBtn.disabled = true;
-
     alert("Staffel 2025 wurde erfolgreich geladen!");
+  });
+}
+
+// Listener beim ersten Anzeigen der Teilnehmer-Seite aktivieren
+document.addEventListener("DOMContentLoaded", () => {
+  // gleich beim Start prüfen
+  initPrefill();
+
+  // zusätzlich bei Navigation prüfen (wenn man den Teilnehmer-Tab öffnet)
+  document.addEventListener("click", e => {
+    const btn = e.target.closest("button[data-target='page-participants']");
+    if (btn) setTimeout(initPrefill, 100); // leicht verzögert, bis DOM sichtbar
   });
 });
 /* === 👥 Teilnehmer-Verwaltung === */
