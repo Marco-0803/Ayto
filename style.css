@@ -23,7 +23,18 @@ header {
   border-bottom: 1px solid rgba(255,255,255,0.1);
   color: #fff;
 }
+/* === Sanft animierter Farbverlauf (optional) === */
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
 
+header {
+  background: linear-gradient(90deg, #ff4fa8, #4a82ff, #ff4fa8);
+  background-size: 200% 200%;
+  animation: gradientShift 12s ease infinite;
+}
 /* Logo bleibt mittig, leicht betont */
 header img.logo {
   width: 90px;
