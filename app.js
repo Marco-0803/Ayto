@@ -1,27 +1,51 @@
-/* === 🔄 Auto-Update & Cache-Refresh === */
+/* === 🔄 Zuverlässiger Auto-Update & Cache-Reset === */
 (function(){
   try {
     const meta = document.querySelector('meta[name="app-version"]');
     const version = meta ? meta.content : null;
     const last = localStorage.getItem('aytoAppVersion');
 
+    // Prüfen, ob sich die Version geändert hat
     if (version && version !== last) {
-      console.log(`Neue Version erkannt (${version}) → Cache wird aktualisiert...`);
-      // 🧹 Optional: lokale Daten leeren, falls Struktur geändert wurde
-      // localStorage.clear();
+      console.log(`🆕 Neue Version erkannt (${version}) → Lösche alte Daten und Cache...`);
 
+      // Schritt 1: LocalStorage komplett löschen
+      const preservedKeys = ["aytoAppVersion"]; // Nur die neue Version behalten
+      const keys = Object.keys(localStorage);
+      for (const k of keys) {
+        if (!preservedKeys.includes(k)) localStorage.removeItem(k);
+      }
+
+      // Schritt 2: Neue Version speichern
       localStorage.setItem('aytoAppVersion', version);
 
-      // 🧩 Service-Worker-Cache (PWA) löschen, falls vorhanden
+      // Schritt 3: Browser-/PWA-Cache leeren
       if ('caches' in window) {
         caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
       }
 
-      // 🔁 Neu laden, um sofort die aktuelle Version zu nutzen
-      setTimeout(() => location.reload(true), 500);
+      // Schritt 4: Optional visueller Hinweis
+      const overlay = document.createElement("div");
+      overlay.style.position = "fixed";
+      overlay.style.inset = "0";
+      overlay.style.display = "flex";
+      overlay.style.alignItems = "center";
+      overlay.style.justifyContent = "center";
+      overlay.style.background = "rgba(0,0,0,0.85)";
+      overlay.style.color = "white";
+      overlay.style.fontSize = "18px";
+      overlay.style.zIndex = "99999";
+      overlay.textContent = "🔄 App wird aktualisiert...";
+      document.body.appendChild(overlay);
+
+      // Schritt 5: erzwungener Reload nach kurzem Delay
+      setTimeout(() => {
+        console.log("🔁 Neuladen...");
+        location.reload(true);
+      }, 1200);
     }
   } catch (e) {
-    console.warn("Version-Check-Fehler:", e);
+    console.warn("Fehler beim Auto-Update:", e);
   }
 })();
 /* === 🌐 Bottom Navigation + Overlay Logic === */
