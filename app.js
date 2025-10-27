@@ -1,3 +1,29 @@
+/* === 🔄 Auto-Update & Cache-Refresh === */
+(function(){
+  try {
+    const meta = document.querySelector('meta[name="app-version"]');
+    const version = meta ? meta.content : null;
+    const last = localStorage.getItem('aytoAppVersion');
+
+    if (version && version !== last) {
+      console.log(`Neue Version erkannt (${version}) → Cache wird aktualisiert...`);
+      // 🧹 Optional: lokale Daten leeren, falls Struktur geändert wurde
+      // localStorage.clear();
+
+      localStorage.setItem('aytoAppVersion', version);
+
+      // 🧩 Service-Worker-Cache (PWA) löschen, falls vorhanden
+      if ('caches' in window) {
+        caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+      }
+
+      // 🔁 Neu laden, um sofort die aktuelle Version zu nutzen
+      setTimeout(() => location.reload(true), 500);
+    }
+  } catch (e) {
+    console.warn("Version-Check-Fehler:", e);
+  }
+})();
 /* === 🌐 Bottom Navigation + Overlay Logic === */
 (function(){
   const nav = document.getElementById('nav');
