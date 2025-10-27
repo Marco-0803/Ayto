@@ -139,7 +139,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btn) setTimeout(initPrefill, 100); // leicht verzögert, bis DOM sichtbar
   });
 });
-/* === 👥 Teilnehmer-Verwaltung === */
+/* === 👥 Teilnehmer-Verwaltung (mit Live-Update) === */
 window.addEventListener("DOMContentLoaded", () => {
   const listA = document.getElementById("listA");
   const listB = document.getElementById("listB");
@@ -147,7 +147,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const addB = document.getElementById("addB");
   const prefill = document.getElementById("prefill");
   const warn = document.getElementById("warnBalance");
-  if(!listA || !listB || !addA || !addB) return;
+  if (!listA || !listB || !addA || !addB) return;
 
   const STORAGE_KEY = "aytoTeilnehmer";
 
@@ -156,7 +156,7 @@ window.addEventListener("DOMContentLoaded", () => {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return { A: [], B: [] };
       const parsed = JSON.parse(raw);
-      return { A: Array.isArray(parsed.A)?parsed.A:[], B: Array.isArray(parsed.B)?parsed.B:[] };
+      return { A: Array.isArray(parsed.A) ? parsed.A : [], B: Array.isArray(parsed.B) ? parsed.B : [] };
     } catch (e) {
       console.warn("localStorage Fehler:", e);
       return { A: [], B: [] };
@@ -164,12 +164,13 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   function saveData() {
-    const A = [...listA.querySelectorAll("input")].map(i=>i.value.trim()).filter(Boolean);
-    const B = [...listB.querySelectorAll("input")].map(i=>i.value.trim()).filter(Boolean);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({A,B}));
+    const A = [...listA.querySelectorAll("input")].map(i => i.value.trim()).filter(Boolean);
+    const B = [...listB.querySelectorAll("input")].map(i => i.value.trim()).filter(Boolean);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ A, B }));
+    document.dispatchEvent(new Event("teilnehmerChanged")); // 🔄 Signal an andere Bereiche
   }
 
-  function createPerson(name, group, save=true) {
+  function createPerson(name, group, save = true) {
     const div = document.createElement("div");
     div.className = "row";
     div.innerHTML = `
@@ -178,96 +179,105 @@ window.addEventListener("DOMContentLoaded", () => {
     `;
     const input = div.querySelector("input");
     input.addEventListener("input", saveData);
-    div.querySelector("button").addEventListener("click", ()=>{
+    div.querySelector("button").addEventListener("click", () => {
       div.remove(); saveData(); checkBalance();
     });
-    (group==="A"?listA:listB).appendChild(div);
-    if(save) saveData();
+    (group === "A" ? listA : listB).appendChild(div);
+    if (save) saveData();
     checkBalance();
   }
 
-  function loadData(){
+  function loadData() {
     const data = getData();
-    listA.innerHTML = ""; listB.innerHTML = "";
-    data.A.forEach(n=>createPerson(n,"A",false));
-    data.B.forEach(n=>createPerson(n,"B",false));
+    listA.innerHTML = "";
+    listB.innerHTML = "";
+    data.A.forEach(n => createPerson(n, "A", false));
+    data.B.forEach(n => createPerson(n, "B", false));
     checkBalance();
   }
 
-function checkBalance(){
-  const aCount = listA.children.length;
-  const bCount = listB.children.length;
-  const diff = Math.abs(aCount - bCount);
-
-  // jetzt erlaubt: bis zu 2 Unterschied
-  if (diff > 2) {
-    warn.style.display = "block";
-    warn.textContent = `⚠ Ungleichgewicht: ${aCount} A-Person(en) vs. ${bCount} B-Person(en).`;
-  } else {
-    warn.style.display = "none";
-  }
-}
-
-  addA.addEventListener("click",()=>createPerson(`A${listA.children.length+1}`,"A"));
-  addB.addEventListener("click",()=>createPerson(`B${listB.children.length+1}`,"B"));
-
-
-});/* === 💞 Matchbox === */
-window.addEventListener("DOMContentLoaded",()=>{
-  const tbA=document.getElementById("tbA"),
-        tbB=document.getElementById("tbB"),
-        tbType=document.getElementById("tbType"),
-        tbAdd=document.getElementById("addTB"),
-        tbList=document.getElementById("tbList");
-  if(!tbA||!tbB||!tbType||!tbAdd||!tbList) return;
-
-  const KEY_T="aytoTeilnehmer", KEY_M="aytoMatchbox";
-  const getTeilnehmer=()=>JSON.parse(localStorage.getItem(KEY_T)||'{"A":[],"B":[]}');
-  const loadM=()=>JSON.parse(localStorage.getItem(KEY_M)||"[]");
-  const saveM=a=>localStorage.setItem(KEY_M,JSON.stringify(a));
-
-  function refresh(){
-    const {A,B}=getTeilnehmer();
-    tbA.innerHTML='<option value="">— A auswählen —</option>';
-    tbB.innerHTML='<option value="">— B auswählen —</option>';
-    A.forEach(n=>tbA.innerHTML+=`<option>${n}</option>`);
-    B.forEach(n=>tbB.innerHTML+=`<option>${n}</option>`);
+  function checkBalance() {
+    const aCount = listA.children.length, bCount = listB.children.length;
+    if (Math.abs(aCount - bCount) > 1) {
+      warn.style.display = "block";
+      warn.textContent = `⚠ Ungleichgewicht: ${aCount} A-Person(en) vs. ${bCount} B-Person(en).`;
+    } else warn.style.display = "none";
   }
 
-  function render(){
-    const arr=loadM(); tbList.innerHTML="";
-    if(!arr.length){tbList.innerHTML="<div class='small muted'>Noch keine Einträge</div>"; return;}
-    arr.forEach((m,i)=>{
-      const tagClass=m.type==="PM"?"tag good":m.type==="NM"?"tag bad":"tag neutral";
-      const tagText=m.type==="PM"?"Perfect Match":m.type==="NM"?"No Match":"Sold";
-      const div=document.createElement("div");
-      div.className="row";
-      div.innerHTML=`<div style="flex:1">${m.A} × ${m.B} <span class="${tagClass}">${tagText}</span></div>
+  addA.addEventListener("click", () => createPerson(`A${listA.children.length + 1}`, "A"));
+  addB.addEventListener("click", () => createPerson(`B${listB.children.length + 1}`, "B"));
+
+  loadData();
+});
+/* === 💞 Matchbox (aktualisiert bei Teilnehmer-Änderungen) === */
+window.addEventListener("DOMContentLoaded", () => {
+  const tbA = document.getElementById("tbA"),
+        tbB = document.getElementById("tbB"),
+        tbType = document.getElementById("tbType"),
+        tbAdd = document.getElementById("addTB"),
+        tbList = document.getElementById("tbList");
+  if (!tbA || !tbB || !tbType || !tbAdd || !tbList) return;
+
+  const KEY_T = "aytoTeilnehmer", KEY_M = "aytoMatchbox";
+  const getTeilnehmer = () => JSON.parse(localStorage.getItem(KEY_T) || '{"A":[],"B":[]}');
+  const loadM = () => JSON.parse(localStorage.getItem(KEY_M) || "[]");
+  const saveM = a => localStorage.setItem(KEY_M, JSON.stringify(a));
+
+  function refresh() {
+    const { A, B } = getTeilnehmer();
+    tbA.innerHTML = '<option value="">— A auswählen —</option>';
+    tbB.innerHTML = '<option value="">— B auswählen —</option>';
+    A.forEach(n => tbA.innerHTML += `<option>${n}</option>`);
+    B.forEach(n => tbB.innerHTML += `<option>${n}</option>`);
+  }
+
+  function render() {
+    const arr = loadM();
+    tbList.innerHTML = "";
+    if (!arr.length) {
+      tbList.innerHTML = "<div class='small muted'>Noch keine Einträge</div>";
+      return;
+    }
+    arr.forEach((m, i) => {
+      const tagClass = m.type === "PM" ? "tag good" : m.type === "NM" ? "tag bad" : "tag neutral";
+      const tagText = m.type === "PM" ? "Perfect Match" : m.type === "NM" ? "No Match" : "Sold";
+      const div = document.createElement("div");
+      div.className = "row";
+      div.innerHTML = `<div style="flex:1">${m.A} × ${m.B} <span class="${tagClass}">${tagText}</span></div>
       <button class="danger small">✖</button>`;
-      div.querySelector("button").onclick=()=>{
-        const a=loadM(); a.splice(i,1); saveM(a); render();
+      div.querySelector("button").onclick = () => {
+        const a = loadM();
+        a.splice(i, 1);
+        saveM(a);
+        render();
       };
       tbList.appendChild(div);
     });
   }
 
-  tbAdd.onclick=()=>{
-    const a=tbA.value.trim(), b=tbB.value.trim(), t=tbType.value;
-    if(!a||!b) return alert("Bitte A und B auswählen!");
-    const arr=loadM();
-    if(arr.some(x=>x.A===a&&x.B===b)) return alert("Dieses Paar existiert bereits!");
-    arr.push({A:a,B:b,type:t}); saveM(arr); render();
+  tbAdd.onclick = () => {
+    const a = tbA.value.trim(), b = tbB.value.trim(), t = tbType.value;
+    if (!a || !b) return alert("Bitte A und B auswählen!");
+    const arr = loadM();
+    if (arr.some(x => x.A === a && x.B === b)) return alert("Dieses Paar existiert bereits!");
+    arr.push({ A: a, B: b, type: t });
+    saveM(arr);
+    render();
   };
 
-  const obsA=new MutationObserver(refresh);
-  const obsB=new MutationObserver(refresh);
-  obsA.observe(document.getElementById("listA"),{childList:true,subtree:true});
-  obsB.observe(document.getElementById("listB"),{childList:true,subtree:true});
+  // Beobachter & Live-Update bei Teilnehmeränderungen
+  const obsA = new MutationObserver(refresh);
+  const obsB = new MutationObserver(refresh);
+  obsA.observe(document.getElementById("listA"), { childList: true, subtree: true });
+  obsB.observe(document.getElementById("listB"), { childList: true, subtree: true });
+  document.addEventListener("teilnehmerChanged", refresh);
 
-  refresh(); render();
+  refresh();
+  render();
 });
 // === 🌙 Matching Nights (komplette Paarungen) ===
 window.addEventListener("DOMContentLoaded", () => {
+  document.addEventListener("teilnehmerChanged", renderNights);
   const addNightBtn = document.getElementById("addNight");
   const nightsList = document.getElementById("nights");
   const STORAGE_KEY_NIGHTS = "aytoMatchingNights";
