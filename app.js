@@ -144,13 +144,19 @@ window.addEventListener("DOMContentLoaded", () => {
     checkBalance();
   }
 
-  function checkBalance(){
-    const aCount=listA.children.length, bCount=listB.children.length;
-    if(Math.abs(aCount-bCount)>1){
-      warn.style.display="block";
-      warn.textContent=`⚠ Ungleichgewicht: ${aCount} A-Person(en) vs. ${bCount} B-Person(en).`;
-    } else warn.style.display="none";
+function checkBalance(){
+  const aCount = listA.children.length;
+  const bCount = listB.children.length;
+  const diff = Math.abs(aCount - bCount);
+
+  // jetzt erlaubt: bis zu 2 Unterschied
+  if (diff > 2) {
+    warn.style.display = "block";
+    warn.textContent = `⚠ Ungleichgewicht: ${aCount} A-Person(en) vs. ${bCount} B-Person(en).`;
+  } else {
+    warn.style.display = "none";
   }
+}
 
   addA.addEventListener("click",()=>createPerson(`A${listA.children.length+1}`,"A"));
   addB.addEventListener("click",()=>createPerson(`B${listB.children.length+1}`,"B"));
