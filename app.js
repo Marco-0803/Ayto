@@ -91,10 +91,10 @@ function initPrefill() {
   prefillBtn.addEventListener("click", () => {
     const A = [
       "Calvin.O", "Calvin.S", "Jonny", "Kevin", "Leandro",
-      "Lennert", "Nico", "Oliver", "Rob", "Sidar", "Xander"
+      "Lennert", "Nico", "Oliver", "Rob", "Sidar", "Marco"
     ];
     const B = [
-      "Antonia", "Ariel", "Beverly", "Elly", "Hati",
+      "Antonia", "Ariel", "Beverly", "Anna", "Hati",
       "Henna", "Joanna", "Nelly", "Sandra", "Viki"
     ];
 
