@@ -122,9 +122,9 @@ function initPrefill() {
     });
 
     localStorage.setItem("aytoTeilnehmer", JSON.stringify({ A, B }));
-    prefillBtn.textContent = "✅ Staffel 2025 geladen";
+    prefillBtn.textContent = "✅ Staffel 2026 geladen";
     prefillBtn.disabled = true;
-    alert("Staffel 2025 wurde erfolgreich geladen!");
+    alert("Staffel 2026 wurde erfolgreich geladen!");
   });
 }
 
