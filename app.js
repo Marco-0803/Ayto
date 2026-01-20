@@ -77,7 +77,7 @@ function hideOverlay(){
   if(ov) ov.classList.remove('show');
 }
 
-/* === Staffel 2025 Vorbelegen (funktioniert sicher, auch mit Navigation) === */
+/* === Staffel 2026 Vorbelegen (funktioniert sicher, auch mit Navigation) === */
 function initPrefill() {
   const prefillBtn = document.getElementById("prefill");
   const listA = document.getElementById("listA");
