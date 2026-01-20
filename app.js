@@ -585,8 +585,8 @@ function buildConstraints() {
 
       if (
         rawB === "" ||
-        rawB.includes("keine") ||
-        rawB.includes("partnerin") ||
+        rawB.includes("kein") ||
+        rawB.includes("Partner") ||
         rawB.includes("ohne") ||
         rawB.includes("—") ||
         rawB.includes("-")
