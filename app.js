@@ -383,7 +383,7 @@ window.addEventListener("DOMContentLoaded", () => {
     // "Keine Partnerin" ist immer erlaubt
     const optionsBase = [
       '<option value="">— wählen —</option>',
-      '<option value="keine">Keine Partnerin</option>'
+      '<option value="keine">Kein Partner</option>'
     ];
 
     const selects = [];
