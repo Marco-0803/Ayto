@@ -90,12 +90,12 @@ function initPrefill() {
 
   prefillBtn.addEventListener("click", () => {
     const A = [
-      "Chris", "Ema", "Evi", "Jeronymo", "Jerry",
-      "Julian.M", "Julian.S", "Luke", "Meji", "Noel"
-    ];
-    const B = [
       "Adrianna", "Alicia", "Aurora", "Elena", "Ella",
       "Laura", "Linda", "Marla", "Michelle", "Tiziana", "Tonia"
+    ];
+    const B = [
+      "Chris", "Ema", "Evi", "Jeronymo", "Jerry",
+      "Julian.M", "Julian.S", "Luke", "Meji", "Noel"
     ];
 
     listA.innerHTML = "";
